@@ -286,6 +286,8 @@ class DragAndDropLists extends StatefulWidget {
   /// https://github.com/flutter/flutter/issues/14842#issuecomment-371344881
   final bool removeTopPadding;
 
+  final bool useSnapScrollPhysics;
+
   DragAndDropLists({
     required this.children,
     required this.onItemReorder,
@@ -336,6 +338,7 @@ class DragAndDropLists extends StatefulWidget {
     this.itemDragHandle,
     this.constrainDraggingAxis = true,
     this.removeTopPadding = false,
+    this.useSnapScrollPhysics = false,
     super.key,
   }) {
     if (listGhost == null &&
@@ -495,9 +498,27 @@ class DragAndDropListsState extends State<DragAndDropLists> {
 
   Widget _buildListView(DragAndDropBuilderParameters parameters,
       DragAndDropListTarget dragAndDropListTarget) {
-    Widget listView = ListView(
+    late Widget listView;
+
+    if (widget.useSnapScrollPhysics) {
+      return ListView.builder(
+        scrollDirection: widget.axis,
+        controller: _scrollController,
+        physics: widget.useSnapScrollPhysics 
+            ? CustomSnapScrollPhysics(singleItemWidth: widget.listWidth) 
+            : null,
+        itemCount: widget.children.length,
+        itemBuilder: (context, index) {
+          final item = _buildInnerList(index, widget.children.length, dragAndDropListTarget, false, parameters);
+          return SizedBox(width: widget.listWidth, child: item);
+        },
+      );
+    }
+    
+    listView = ListView(
       scrollDirection: widget.axis,
       controller: _scrollController,
+      physics: widget.useSnapScrollPhysics ? const PageScrollPhysics() : null,
       children: _buildOuterList(dragAndDropListTarget, parameters),
     );
 
@@ -844,5 +865,39 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   static Offset localToGlobal(RenderObject object, Offset point,
       {RenderObject? ancestor}) {
     return MatrixUtils.transformPoint(object.getTransformTo(ancestor), point);
+  }
+}
+
+class CustomSnapScrollPhysics extends ScrollPhysics {
+  final double singleItemWidth;
+  const CustomSnapScrollPhysics({super.parent, required this.singleItemWidth});
+
+  @override
+  CustomSnapScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return CustomSnapScrollPhysics(parent: buildParent(ancestor), singleItemWidth: singleItemWidth);
+  }
+
+  @override
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) {
+    final double snapOffset = _getNearestSnapOffset(position.pixels);
+    
+    if (snapOffset != position.pixels) {
+      return ScrollSpringSimulation(
+        spring,
+        position.pixels,
+        snapOffset,
+        velocity,
+        tolerance: tolerance,
+      );
+    }
+    return super.createBallisticSimulation(position, velocity);
+  }
+
+  double _getNearestSnapOffset(double currentOffset) {
+    final int index = (currentOffset / singleItemWidth).round();
+    return index * singleItemWidth;
   }
 }

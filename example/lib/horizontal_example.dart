@@ -38,11 +38,12 @@ class _HorizontalExample extends State<HorizontalExample> {
       ),
       drawer: const CustomNavigationDrawer(),
       body: DragAndDropLists(
+        useSnapScrollPhysics: true,
         children: List.generate(_lists.length, (index) => _buildList(index)),
         onItemReorder: _onItemReorder,
         onListReorder: _onListReorder,
         axis: Axis.horizontal,
-        listWidth: 150,
+        listWidth: MediaQuery.sizeOf(context).width * 0.9,
         listDraggingWidth: 150,
         listDecoration: BoxDecoration(
           color: Colors.grey[200],
