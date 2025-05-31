@@ -288,6 +288,8 @@ class DragAndDropLists extends StatefulWidget {
 
   final bool useSnapScrollPhysics;
 
+  final bool enableAnyDragDirection;
+
   DragAndDropLists({
     required this.children,
     required this.onItemReorder,
@@ -339,6 +341,7 @@ class DragAndDropLists extends StatefulWidget {
     this.constrainDraggingAxis = true,
     this.removeTopPadding = false,
     this.useSnapScrollPhysics = false,
+    this.enableAnyDragDirection = false,
     super.key,
   }) {
     if (listGhost == null &&
@@ -424,6 +427,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       itemDragHandle: widget.itemDragHandle,
       constrainDraggingAxis: widget.constrainDraggingAxis,
       disableScrolling: widget.disableScrolling,
+      enableAnyDragDirection: widget.enableAnyDragDirection,
     );
 
     DragAndDropListTarget dragAndDropListTarget = DragAndDropListTarget(
