@@ -506,10 +506,11 @@ class DragAndDropListsState extends State<DragAndDropLists> {
 
     if (widget.useSnapScrollPhysics) {
       return ListView.builder(
+        
         scrollDirection: widget.axis,
         controller: _scrollController,
         physics: widget.useSnapScrollPhysics 
-            ? CustomSnapScrollPhysics(singleItemWidth: widget.listWidth) 
+            ? CustomSnapScrollPhysics2(singleItemWidth: widget.listWidth) 
             : null,
         itemCount: widget.children.length,
         itemBuilder: (context, index) {
@@ -894,10 +895,66 @@ class CustomSnapScrollPhysics extends ScrollPhysics {
         position.pixels,
         snapOffset,
         velocity,
-        tolerance: tolerance,
+        tolerance: Tolerance.defaultTolerance,
       );
     }
     return super.createBallisticSimulation(position, velocity);
+  }
+
+  double _getNearestSnapOffset(double currentOffset) {
+    final int index = (currentOffset / singleItemWidth).round();
+    return index * singleItemWidth;
+  }
+}
+
+
+
+
+class CustomSnapScrollPhysics2 extends ScrollPhysics {
+  final double singleItemWidth;
+  const CustomSnapScrollPhysics2({super.parent, required this.singleItemWidth});
+
+  @override
+  CustomSnapScrollPhysics2 applyTo(ScrollPhysics? ancestor) {
+    return CustomSnapScrollPhysics2(parent: buildParent(ancestor), singleItemWidth: singleItemWidth);
+  }
+
+  @override
+  Simulation? createBallisticSimulation(
+    ScrollMetrics position,
+    double velocity,
+  ) {
+    // 1. Определяем направление скролла
+    final bool isGoingLeft = velocity < 0;
+    
+    // 2. Получаем текущую позицию и размеры
+    final double itemWidth = singleItemWidth; // Ширина элемента
+    final double currentPage = position.pixels / itemWidth;
+    final int currentIndex = currentPage.floor();
+    
+    // 3. Определяем следующий индекс на основе минимального свайпа
+    int nextIndex;
+    if (velocity.abs() > 50) { // Быстрый свайп
+      nextIndex = isGoingLeft ? currentIndex : currentIndex + 1;
+    } else { // Медленный свайп - реагируем на порог чувствительности
+      final double pageFraction = currentPage - currentIndex;
+      nextIndex = pageFraction > 0.1 
+          ? currentIndex + 1 
+          : currentIndex;
+    }
+    
+    // 4. Ограничиваем индекс в допустимых пределах
+    nextIndex = nextIndex.clamp(0, (position.maxScrollExtent / itemWidth).floor());
+    final double snapOffset = _getNearestSnapOffset(position.pixels);
+    
+    // 5. Создаем анимацию перехода
+    return ScrollSpringSimulation(
+      spring,
+      position.pixels,
+      nextIndex * singleItemWidth,
+      velocity,
+      tolerance: tolerance,
+    );
   }
 
   double _getNearestSnapOffset(double currentOffset) {
