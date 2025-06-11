@@ -279,7 +279,7 @@ class DragAndDropLists extends StatefulWidget {
   /// the vertical axis. By default this is set to true. This may be useful to
   /// disable when setting customDragTargets
   final bool constrainDraggingAxis;
-  
+
   /// If you put a widget before DragAndDropLists there's an unexpected padding
   /// before the list renders. This is the default behaviour for ListView which
   /// is used internally. To remove the padding, set this field to true
@@ -289,6 +289,8 @@ class DragAndDropLists extends StatefulWidget {
   final bool useSnapScrollPhysics;
 
   final bool enableAnyDragDirection;
+
+  final void Function(double?, double?)? onMoveUpdate;
 
   DragAndDropLists({
     required this.children,
@@ -342,6 +344,7 @@ class DragAndDropLists extends StatefulWidget {
     this.removeTopPadding = false,
     this.useSnapScrollPhysics = false,
     this.enableAnyDragDirection = false,
+    this.onMoveUpdate,
     super.key,
   }) {
     if (listGhost == null &&
@@ -401,7 +404,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       itemSizeAnimationDuration: widget.itemSizeAnimationDurationMilliseconds,
       onPointerDown: _onPointerDown,
       onPointerUp: _onPointerUp,
-      onPointerMove: _onPointerMove,
+      onPointerMove:  _onPointerMove,
       onItemReordered: _internalOnItemReorder,
       onItemDropOnLastTarget: _internalOnItemDropOnLastTarget,
       onListReordered: _internalOnListReorder,
@@ -508,8 +511,8 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       return ListView.builder(
         scrollDirection: widget.axis,
         controller: _scrollController,
-        physics: widget.useSnapScrollPhysics 
-            ? CustomSnapScrollPhysics(singleItemWidth: widget.listWidth) 
+        physics: widget.useSnapScrollPhysics
+            ? CustomSnapScrollPhysics(singleItemWidth: widget.listWidth)
             : null,
         itemCount: widget.children.length,
         itemBuilder: (context, index) {
@@ -518,7 +521,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
         },
       );
     }
-    
+
     listView = ListView(
       scrollDirection: widget.axis,
       controller: _scrollController,
@@ -749,6 +752,16 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       var topLeftOffset = localToGlobal(rb, Offset.zero);
       var bottomRightOffset = localToGlobal(rb, size.bottomRight(Offset.zero));
 
+      final verticalOffset = _scrollListVertical(topLeftOffset, bottomRightOffset);
+      final directionality = Directionality.of(context);
+      final horizontalOffset = directionality == TextDirection.ltr
+          ? _scrollListHorizontalLtr(topLeftOffset, bottomRightOffset)
+          : _scrollListHorizontalRtl(topLeftOffset, bottomRightOffset);
+
+      if (verticalOffset != null || horizontalOffset != null) {
+          widget.onMoveUpdate?.call(verticalOffset, horizontalOffset);
+      }
+
       if (widget.axis == Axis.vertical) {
         newOffset = _scrollListVertical(topLeftOffset, bottomRightOffset);
       } else {
@@ -887,7 +900,7 @@ class CustomSnapScrollPhysics extends ScrollPhysics {
     double velocity,
   ) {
     final double snapOffset = _getNearestSnapOffset(position.pixels);
-    
+
     if (snapOffset != position.pixels) {
       return ScrollSpringSimulation(
         spring,
