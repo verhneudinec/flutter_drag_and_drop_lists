@@ -291,6 +291,8 @@ class DragAndDropLists extends StatefulWidget {
   final bool enableAnyDragDirection;
 
   final void Function(double?, double?)? onMoveUpdate;
+  
+  final ScrollController? verticalScrollController;
 
   DragAndDropLists({
     required this.children,
@@ -345,6 +347,7 @@ class DragAndDropLists extends StatefulWidget {
     this.useSnapScrollPhysics = false,
     this.enableAnyDragDirection = false,
     this.onMoveUpdate,
+    this.verticalScrollController,
     super.key,
   }) {
     if (listGhost == null &&
@@ -763,16 +766,10 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       }
 
       if (widget.axis == Axis.vertical) {
-        newOffset = _scrollListVertical(topLeftOffset, bottomRightOffset);
+        newOffset = verticalOffset;
       } else {
-        var directionality = Directionality.of(context);
-        if (directionality == TextDirection.ltr) {
-          newOffset =
-              _scrollListHorizontalLtr(topLeftOffset, bottomRightOffset);
-        } else {
-          newOffset =
-              _scrollListHorizontalRtl(topLeftOffset, bottomRightOffset);
-        }
+        newOffset = horizontalOffset;
+       
       }
 
       if (newOffset != null) {
@@ -791,7 +788,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
     double? newOffset;
 
     var pointerYPosition = _pointerYPosition;
-    var scrollController = _scrollController;
+    var scrollController = widget.verticalScrollController ?? _scrollController;
     if (scrollController != null && pointerYPosition != null) {
       if (pointerYPosition < (top + _scrollAreaSize) &&
           scrollController.position.pixels >
