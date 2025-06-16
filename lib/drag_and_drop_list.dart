@@ -44,6 +44,8 @@ class DragAndDropList implements DragAndDropListInterface {
   @override
   final List<DragAndDropItem> children;
 
+  final void Function()? onTapCallback;
+
   /// Whether or not this item can be dragged.
   /// Set to true if it can be reordered.
   /// Set to false if it must remain fixed.
@@ -64,6 +66,7 @@ class DragAndDropList implements DragAndDropListInterface {
     this.horizontalAlignment = MainAxisAlignment.start,
     this.verticalAlignment = CrossAxisAlignment.start,
     this.canDrag = true,
+    this.onTapCallback,
   });
 
   @override
@@ -98,7 +101,7 @@ class DragAndDropList implements DragAndDropListInterface {
       contents.add(Flexible(child: footer!));
     }
 
-    return Container(
+    final widget = Container(
       key: key,
       width: params.axis == Axis.vertical
           ? double.infinity
@@ -110,6 +113,15 @@ class DragAndDropList implements DragAndDropListInterface {
         children: contents,
       ),
     );
+
+    if (onTapCallback != null) {
+      return InkWell(
+        onTap: onTapCallback,
+        child: widget,
+      );
+    }
+
+    return widget;
   }
 
   List<Widget> _generateDragAndDropListInnerContents(
