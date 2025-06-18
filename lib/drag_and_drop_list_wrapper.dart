@@ -201,12 +201,6 @@ class _DragAndDropListWrapper extends State<DragAndDropListWrapper>
     );
 
     Widget toReturn = stack;
-    if (widget.parameters.listPadding != null) {
-      toReturn = Padding(
-        padding: widget.parameters.listPadding!,
-        child: stack,
-      );
-    }
     if (widget.parameters.axis == Axis.horizontal &&
         !widget.parameters.disableScrolling) {
       toReturn = SingleChildScrollView(

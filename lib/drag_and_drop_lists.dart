@@ -513,27 +513,12 @@ class DragAndDropListsState extends State<DragAndDropLists> {
 
   Widget _buildListView(DragAndDropBuilderParameters parameters,
       DragAndDropListTarget dragAndDropListTarget) {
-    late Widget listView;
-
-    if (widget.useSnapScrollPhysics) {
-      return ListView.builder(
-        scrollDirection: widget.axis,
-        controller: _scrollController,
-        physics: widget.useSnapScrollPhysics
-            ? CustomPageScrollPhysics(kColumnViewportFraction: widget.listWidth / MediaQuery.sizeOf(context).width)
-            : null,
-        itemCount: widget.children.length,
-        itemBuilder: (context, index) {
-          final item = _buildInnerList(index, widget.children.length, dragAndDropListTarget, false, parameters);
-          return SizedBox(width: widget.listWidth, child: item);
-        },
-      );
-    }
-
-    listView = ListView(
+    final listView = ListView(
       scrollDirection: widget.axis,
       controller: _scrollController,
-      physics: widget.useSnapScrollPhysics ? const PageScrollPhysics() : null,
+      physics: widget.useSnapScrollPhysics
+        ? CustomPageScrollPhysics(kColumnViewportFraction: widget.listWidth / MediaQuery.sizeOf(context).width)
+        : null,
       children: _buildOuterList(dragAndDropListTarget, parameters),
     );
 
@@ -769,14 +754,13 @@ class DragAndDropListsState extends State<DragAndDropLists> {
             : _scrollListHorizontalRtl(topLeftOffset, bottomRightOffset);
 
       if (verticalOffset != null || horizontalOffset != null) {
-          widget.onMoveUpdate?.call(_pointerYPosition, _pointerXPosition);
+          // widget.onMoveUpdate?.call(_pointerYPosition, _pointerXPosition);
       }
 
-      if (widget.axis == Axis.vertical) {
+      if (verticalOffset != 0) {
         newOffset = verticalOffset;
       } else {
         newOffset = horizontalOffset;
-       
       }
 
       if (newOffset != null) {

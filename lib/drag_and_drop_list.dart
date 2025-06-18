@@ -117,7 +117,10 @@ class DragAndDropList implements DragAndDropListInterface {
     if (onTapCallback != null) {
       return InkWell(
         onTap: onTapCallback,
-        child: widget,
+        child: Container(
+          padding: params.listPadding,
+          child: widget,
+        ),
       );
     }
 
