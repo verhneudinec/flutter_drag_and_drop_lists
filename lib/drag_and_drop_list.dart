@@ -108,7 +108,6 @@ class DragAndDropList implements DragAndDropListInterface {
       width: params.axis == Axis.vertical
           ? double.infinity
           : params.listWidth - params.listPadding!.horizontal,
-      decoration: decoration ?? params.listDecoration,
       child: Column(
         mainAxisSize: MainAxisSize.max,
         crossAxisAlignment: verticalAlignment,
@@ -116,18 +115,15 @@ class DragAndDropList implements DragAndDropListInterface {
       ),
     );
 
-    if (onTapCallback != null) {
-      return InkWell(
-        onTap: onTapCallback,
-        child: Container(
-          height: params.listHeigth,
-          padding: params.listPadding,
-          child: widget,
-        ),
-      );
-    }
-
-    return widget;
+    return InkWell(
+      onTap: onTapCallback,
+      child: Container(
+        decoration: decoration ?? params.listDecoration,
+        height: params.listHeigth,
+        padding: params.listPadding,
+        child: widget,
+      ),
+    );
   }
 
   List<Widget> _generateDragAndDropListInnerContents(
