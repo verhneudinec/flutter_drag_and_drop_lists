@@ -383,6 +383,11 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   bool _scrolling = false;
   final PageStorageBucket _pageStorageBucket = PageStorageBucket();
 
+  // for horizontal snap scroll
+  DateTime? _lastScrollTime;
+  final _scrollThrottle = const Duration(milliseconds: 2000);
+  final _scrollTriggerZone = 50.0;
+
   @override
   void initState() {
     if (widget.scrollController != null) {
@@ -515,7 +520,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
         scrollDirection: widget.axis,
         controller: _scrollController,
         physics: widget.useSnapScrollPhysics
-            ? CustomSnapScrollPhysics(singleItemWidth: widget.listWidth)
+            ? CustomPageScrollPhysics(kColumnViewportFraction: widget.listWidth / MediaQuery.sizeOf(context).width)
             : null,
         itemCount: widget.children.length,
         itemBuilder: (context, index) {
@@ -757,9 +762,11 @@ class DragAndDropListsState extends State<DragAndDropLists> {
 
       final verticalOffset = _scrollListVertical(topLeftOffset, bottomRightOffset);
       final directionality = Directionality.of(context);
-      final horizontalOffset = directionality == TextDirection.ltr
-          ? _scrollListHorizontalLtr(topLeftOffset, bottomRightOffset)
-          : _scrollListHorizontalRtl(topLeftOffset, bottomRightOffset);
+      final horizontalOffset = widget.useSnapScrollPhysics 
+        ? _scrollListHorizontalWithSnapPhysics(topLeftOffset, bottomRightOffset) 
+          : directionality == TextDirection.ltr
+            ? _scrollListHorizontalLtr(topLeftOffset, bottomRightOffset)
+            : _scrollListHorizontalRtl(topLeftOffset, bottomRightOffset);
 
       if (verticalOffset != null || horizontalOffset != null) {
           widget.onMoveUpdate?.call(_pointerYPosition, _pointerXPosition);
@@ -802,6 +809,53 @@ class DragAndDropListsState extends State<DragAndDropLists> {
             pointerYPosition - (bottom - _scrollAreaSize), _overDragMax);
         newOffset = min(scrollController.position.maxScrollExtent,
             scrollController.position.pixels + overDrag / _overDragCoefficient);
+      }
+    }
+
+    return newOffset;
+  }
+
+  double? _scrollListHorizontalWithSnapPhysics(
+    Offset topLeftOffset, Offset bottomRightOffset) {
+    double left = topLeftOffset.dx;
+    double right = bottomRightOffset.dx;
+    double? newOffset;
+
+    var pointerXPosition = _pointerXPosition;
+    var scrollController = _scrollController;
+    
+    if (scrollController != null && pointerXPosition != null) {
+      final currentPosition = scrollController.position.pixels;
+      final now = DateTime.now();
+
+      // left scroll
+      if (pointerXPosition < (left + _scrollTriggerZone) &&
+          currentPosition > scrollController.position.minScrollExtent) {
+        
+        if (_lastScrollTime == null || 
+            now.difference(_lastScrollTime!) > _scrollThrottle) {
+          
+          newOffset = max(
+            scrollController.position.minScrollExtent,
+            currentPosition - widget.listWidth,
+          );
+          _lastScrollTime = now;
+        }
+      }
+
+      // right scroll
+      else if (pointerXPosition > (right - _scrollTriggerZone) &&
+          currentPosition < scrollController.position.maxScrollExtent) {
+        
+        if (_lastScrollTime == null || 
+            now.difference(_lastScrollTime!) > _scrollThrottle) {
+          
+          newOffset = min(
+            scrollController.position.maxScrollExtent,
+            currentPosition + widget.listWidth,
+          );
+          _lastScrollTime = now;
+        }
       }
     }
 
@@ -880,36 +934,57 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   }
 }
 
-class CustomSnapScrollPhysics extends ScrollPhysics {
-  final double singleItemWidth;
-  const CustomSnapScrollPhysics({super.parent, required this.singleItemWidth});
+class CustomPageScrollPhysics extends ScrollPhysics {
+  final double kColumnViewportFraction;
+  const CustomPageScrollPhysics({super.parent, this.kColumnViewportFraction = 1.0 });
 
   @override
-  CustomSnapScrollPhysics applyTo(ScrollPhysics? ancestor) {
-    return CustomSnapScrollPhysics(parent: buildParent(ancestor), singleItemWidth: singleItemWidth);
+  CustomPageScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return CustomPageScrollPhysics(parent: buildParent(ancestor), kColumnViewportFraction: kColumnViewportFraction);
+  }
+
+  double _getPage(ScrollMetrics position) {
+    return position.pixels / (position.viewportDimension * kColumnViewportFraction);
+  }
+
+  double _getPixels(double page, ScrollMetrics position) {
+    return page * (position.viewportDimension * kColumnViewportFraction);
+  }
+
+  double _getTargetPixels(ScrollMetrics position, Tolerance tolerance, double velocity) {
+    double page = _getPage(position);
+
+    if (velocity < -tolerance.velocity) {
+      page -= 0.5; 
+    } else if (velocity > tolerance.velocity) {
+      page += 0.5;
+    }
+
+    return _getPixels(page.roundToDouble(), position);
   }
 
   @override
-  Simulation? createBallisticSimulation(
-    ScrollMetrics position,
-    double velocity,
-  ) {
-    final double snapOffset = _getNearestSnapOffset(position.pixels);
+  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) {
+    if ((velocity <= 0.0 && position.pixels <= position.minScrollExtent) ||
+        (velocity >= 0.0 && position.pixels >= position.maxScrollExtent)) {
+      return super.createBallisticSimulation(position, velocity);
+    }
 
-    if (snapOffset != position.pixels) {
+    final Tolerance tolerance = toleranceFor(position);
+    final double target = _getTargetPixels(position, tolerance, velocity);
+
+    if (target != position.pixels) {
       return ScrollSpringSimulation(
         spring,
         position.pixels,
-        snapOffset,
+        target,
         velocity,
         tolerance: tolerance,
       );
     }
-    return super.createBallisticSimulation(position, velocity);
+    return null;
   }
 
-  double _getNearestSnapOffset(double currentOffset) {
-    final int index = (currentOffset / singleItemWidth).round();
-    return index * singleItemWidth;
-  }
+  @override
+  bool get allowImplicitScrolling => false;
 }
