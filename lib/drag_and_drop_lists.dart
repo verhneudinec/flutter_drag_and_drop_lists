@@ -757,11 +757,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
             ? _scrollListHorizontalLtr(topLeftOffset, bottomRightOffset)
             : _scrollListHorizontalRtl(topLeftOffset, bottomRightOffset);
 
-      if (verticalOffset != null || horizontalOffset != null) {
-          // widget.onMoveUpdate?.call(_pointerYPosition, _pointerXPosition);
-      }
-
-      if (verticalOffset != 0) {
+      if (widget.axis == Axis.vertical) {
         newOffset = verticalOffset;
       } else {
         newOffset = horizontalOffset;
