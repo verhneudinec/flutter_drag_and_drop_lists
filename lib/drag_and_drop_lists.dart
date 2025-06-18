@@ -227,6 +227,8 @@ class DragAndDropLists extends StatefulWidget {
   /// [axis] is set to Axis.horizontal.
   final double listWidth;
 
+  final double? listHeigth;
+
   /// The height of the target for the last item in a list. This should be large
   /// enough to easily drag an item into the last position of a list.
   final double lastItemTargetHeight;
@@ -331,6 +333,7 @@ class DragAndDropLists extends StatefulWidget {
     this.listPadding,
     this.contentsWhenEmpty,
     this.listWidth = double.infinity,
+    this.listHeigth,
     this.lastItemTargetHeight = 20,
     this.addLastItemTargetHeightToTop = false,
     this.lastListTargetSize = 110,
@@ -432,6 +435,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       listDecorationWhileDragging: widget.listDecorationWhileDragging,
       listInnerDecoration: widget.listInnerDecoration,
       listWidth: widget.listWidth,
+      listHeigth: widget.listHeigth,
       lastItemTargetHeight: widget.lastItemTargetHeight,
       addLastItemTargetHeightToTop: widget.addLastItemTargetHeightToTop,
       listDragHandle: widget.listDragHandle,

@@ -90,9 +90,11 @@ class DragAndDropList implements DragAndDropListInterface {
       );
     }
     if (params.listInnerDecoration != null) {
-      intrinsicHeight = Container(
-        decoration: params.listInnerDecoration,
-        child: intrinsicHeight,
+      intrinsicHeight = Flexible(
+        child: Container(
+          decoration: params.listInnerDecoration,
+          child: intrinsicHeight,
+        ),
       );
     }
     contents.add(intrinsicHeight);
@@ -108,7 +110,7 @@ class DragAndDropList implements DragAndDropListInterface {
           : params.listWidth - params.listPadding!.horizontal,
       decoration: decoration ?? params.listDecoration,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.max,
         crossAxisAlignment: verticalAlignment,
         children: contents,
       ),
@@ -118,6 +120,7 @@ class DragAndDropList implements DragAndDropListInterface {
       return InkWell(
         onTap: onTapCallback,
         child: Container(
+          height: params.listHeigth,
           padding: params.listPadding,
           child: widget,
         ),
@@ -163,10 +166,13 @@ class DragAndDropList implements DragAndDropListInterface {
         Expanded(
           child: SingleChildScrollView(
             physics: const NeverScrollableScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: verticalAlignment,
-              mainAxisSize: MainAxisSize.max,
-              children: allChildren,
+            child: SizedBox(
+              height: parameters.listHeigth,
+              child: Column(
+                crossAxisAlignment: verticalAlignment,
+                mainAxisSize: MainAxisSize.max,
+                children: allChildren,
+              ),
             ),
           ),
         ),
