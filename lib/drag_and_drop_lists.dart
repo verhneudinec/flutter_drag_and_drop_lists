@@ -789,17 +789,15 @@ class DragAndDropListsState extends State<DragAndDropLists> {
 
     var pointerYPosition = _pointerYPosition;
     var scrollController = widget.verticalScrollController ?? _scrollController;
+
     if (scrollController != null && pointerYPosition != null) {
-      if (pointerYPosition < (top + _scrollAreaSize) &&
-          scrollController.position.pixels >
-              scrollController.position.minScrollExtent) {
+      if (pointerYPosition < (top + _scrollAreaSize + 50) 
+        ) {
         final overDrag =
             max((top + _scrollAreaSize) - pointerYPosition, _overDragMax);
         newOffset = max(scrollController.position.minScrollExtent,
             scrollController.position.pixels - overDrag / _overDragCoefficient);
-      } else if (pointerYPosition > (bottom - _scrollAreaSize) &&
-          scrollController.position.pixels <
-              scrollController.position.maxScrollExtent) {
+      } else if (pointerYPosition > (bottom - _scrollAreaSize - 140)) {
         final overDrag = max<double>(
             pointerYPosition - (bottom - _scrollAreaSize), _overDragMax);
         newOffset = min(scrollController.position.maxScrollExtent,
