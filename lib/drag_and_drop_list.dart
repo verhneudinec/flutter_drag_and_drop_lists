@@ -117,11 +117,19 @@ class DragAndDropList implements DragAndDropListInterface {
 
     return InkWell(
       onTap: onTapCallback,
-      child: Container(
-        decoration: decoration ?? params.listDecoration,
-        height: params.listHeigth,
-        padding: params.listPadding,
-        child: widget,
+      child: DragTarget(
+        onWillAccept: (_) {
+          params.listOnWillAccept?.call(null, this);
+          return true;
+        },
+        builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) { 
+          return Container(
+            decoration: decoration ?? params.listDecoration,
+            height: params.listHeigth,
+            padding: params.listPadding,
+            child: widget,
+          );
+        }
       ),
     );
   }
@@ -149,14 +157,13 @@ class DragAndDropList implements DragAndDropListInterface {
           allChildren.add(parameters.itemDivider!);
         }
       }
-      allChildren.add(DragAndDropItemTarget(
-        parent: this,
-        parameters: parameters,
-        onReorderOrAdd: parameters.onItemDropOnLastTarget!,
-        child: lastTarget ??
-            Container(
-              height: parameters.lastItemTargetHeight,
-            ),
+      allChildren.add(Expanded(
+        child: DragAndDropItemTarget(
+          parent: this,
+          parameters: parameters,
+          onReorderOrAdd: parameters.onItemDropOnLastTarget!,
+          child: lastTarget ?? Container(height: parameters.lastItemTargetHeight),
+        ),
       ));
       contents.add(
         Expanded(
@@ -178,26 +185,14 @@ class DragAndDropList implements DragAndDropListInterface {
         Expanded(
           child: SingleChildScrollView(
             physics: const NeverScrollableScrollPhysics(),
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
-              children: <Widget>[
-                contentsWhenEmpty ??
-                    const Text(
-                      'Empty list',
-                      style: TextStyle(
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                DragAndDropItemTarget(
-                  parent: this,
-                  parameters: parameters,
-                  onReorderOrAdd: parameters.onItemDropOnLastTarget!,
-                  child: lastTarget ??
-                      Container(
-                        height: parameters.lastItemTargetHeight,
-                      ),
-                ),
-              ],
+            child: SizedBox(
+              height: parameters.listHeigth,
+              child: DragAndDropItemTarget(
+                parent: this,
+                parameters: parameters,
+                onReorderOrAdd: parameters.onItemDropOnLastTarget!,
+                child: lastTarget ?? const SizedBox()
+              ),
             ),
           ),
         ),
