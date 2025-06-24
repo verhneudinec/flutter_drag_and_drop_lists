@@ -777,11 +777,11 @@ class DragAndDropListsState extends State<DragAndDropLists> {
     }
   }
 
-  double _scrollListVertical() {
+  double? _scrollListVertical() {
     final pointerYPosition = _pointerYPosition;
     final scrollController = widget.verticalScrollController ?? _scrollController;
 
-    if (scrollController == null || pointerYPosition == null) return 0.0;
+    if (scrollController == null || pointerYPosition == null) return null;
 
     final position = scrollController.position;
     final viewportHeight = position.viewportDimension;
@@ -799,66 +799,74 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       newOffset = position.pixels + overDrag / _overDragCoefficient;
     }
 
-    if (newOffset != null && widget.useSnapScrollPhysics && widget.axis == Axis.horizontal) {
+    if (newOffset != null) {
       newOffset = newOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
-      scrollController.jumpTo(newOffset); // Мгновенный скролл
-      // scrollController.animateTo(newOffset, duration: Duration(milliseconds: 100), curve: Curves.easeOut);
+      // Запускаем анимацию скролла и продолжаем скроллить, пока палец на экране
+      _scrolling = true;
+      scrollController.animateTo(newOffset,
+        duration: Duration(milliseconds: _duration), curve: Curves.linear).then((_) {
+        _scrolling = false;
+        if (_pointerDown) _scrollList();
+      });
     }
 
-    return 0.0;
+    return newOffset;
   }
 
 
 
-  void _scrollListHorizontalWithSnapPhysics(x, y) {
+  double _scrollListHorizontalWithSnapPhysics(Offset topLeftOffset, Offset bottomRightOffset) {
     final pointerXPosition = _pointerXPosition;
     final scrollController = _scrollController;
 
-    if (scrollController == null || pointerXPosition == null) return;
+    if (scrollController == null || pointerXPosition == null) return 0.0;
 
     final position = scrollController.position;
-    final viewportWidth = position.viewportDimension;
-
-    final leftEdge = 0.0;
-    final rightEdge = viewportWidth;
-
-    final now = DateTime.now();
+    final double listWidth = widget.listWidth;
+    double left = topLeftOffset.dx;
+    double right = bottomRightOffset.dx;
     double? newOffset;
 
-    // Scroll left
-    if (pointerXPosition < (leftEdge + _scrollTriggerZone) &&
-        position.pixels > position.minScrollExtent) {
-
-      if (_lastScrollTime == null || now.difference(_lastScrollTime!) > _scrollThrottle) {
-        newOffset = (position.pixels - widget.listWidth).clamp(
-          position.minScrollExtent,
-          position.maxScrollExtent,
-        );
-        _lastScrollTime = now;
-      }
-
-    }
-    // Scroll right
-    else if (pointerXPosition > (rightEdge - _scrollTriggerZone) &&
-        position.pixels < position.maxScrollExtent) {
-
-      if (_lastScrollTime == null || now.difference(_lastScrollTime!) > _scrollThrottle) {
-        newOffset = (position.pixels + widget.listWidth).clamp(
-          position.minScrollExtent,
-          position.maxScrollExtent,
-        );
-        _lastScrollTime = now;
-      }
+    // Проверяем, нужно ли скроллить влево
+    if (pointerXPosition < (left + _scrollAreaSize)) {
+      // Находим текущую страницу
+      int currentPage = (position.pixels / listWidth).floor();
+      int targetPage = (currentPage - 1).clamp(0, (position.maxScrollExtent / listWidth).floor());
+      newOffset = (targetPage * listWidth).clamp(position.minScrollExtent, position.maxScrollExtent);
+    } else if (pointerXPosition > (right - _scrollAreaSize)) {
+      // Скроллим вправо
+      int currentPage = (position.pixels / listWidth).floor();
+      int maxPage = (position.maxScrollExtent / listWidth).floor();
+      int targetPage = (currentPage + 1).clamp(0, maxPage);
+      newOffset = (targetPage * listWidth).clamp(position.minScrollExtent, position.maxScrollExtent);
     }
 
-    if (newOffset != null) {
-      // Scroll with animation for snapping effect
-      scrollController.animateTo(
-        newOffset,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
-      );
+    if (newOffset != null && (newOffset - position.pixels).abs() > 1.0) {
+      _scrolling = true;
+      scrollController.animateTo(newOffset,
+        duration: Duration(milliseconds: 250), curve: Curves.ease).then((_) {
+        _scrolling = false;
+        if (_pointerDown) _scrollList();
+      });
     }
+
+    return newOffset ?? position.pixels;
+  }
+
+  // Helper function to calculate scroll speed based on distance from edge
+  double _calculateScrollSpeed(double distanceFromEdge) {
+    // Convert distance to a speed value between 1 and 15
+    const maxSpeed = 15.0;
+    const minSpeed = 1.0;
+
+    // Normalize distance to 0-1 range within scroll area
+    double normalizedDistance = (distanceFromEdge / _scrollAreaSize).clamp(0.0, 1.0);
+
+    // Inverse the normalized distance (closer to edge = faster)
+    double inverseDistance = 1.0 - normalizedDistance;
+
+    // Calculate speed with easing
+    return minSpeed + (inverseDistance * inverseDistance * (maxSpeed - minSpeed));
   }
 
   double? _scrollListHorizontalLtr(
