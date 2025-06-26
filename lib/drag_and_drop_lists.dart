@@ -786,7 +786,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
     final position = scrollController.position;
     final viewportHeight = position.viewportDimension;
 
-    const top = 60.0;
+    const top = 80.0;
     final bottom = viewportHeight;
 
     double? newOffset;
@@ -799,7 +799,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       newOffset = position.pixels + overDrag / _overDragCoefficient;
     }
 
-    if (newOffset != null) {
+    if (newOffset != null && newOffset > 0) {
       newOffset = newOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
       // Запускаем анимацию скролла и продолжаем скроллить, пока палец на экране
       _scrolling = true;
