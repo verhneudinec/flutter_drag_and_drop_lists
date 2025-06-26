@@ -48,6 +48,7 @@ class _DragAndDropItemTarget extends State<DragAndDropItemTarget>
         ),
         Positioned.fill(
           child: DragTarget<DragAndDropItem>(
+            hitTestBehavior: HitTestBehavior.opaque,
             builder: (context, candidateData, rejectedData) {
               if (candidateData.isNotEmpty) {}
               return Container();
