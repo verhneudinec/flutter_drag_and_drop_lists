@@ -517,12 +517,23 @@ class DragAndDropListsState extends State<DragAndDropLists> {
 
   Widget _buildListView(DragAndDropBuilderParameters parameters,
       DragAndDropListTarget dragAndDropListTarget) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final double viewportFraction = widget.listWidth.isFinite
+        ? widget.listWidth / screenWidth
+        : 1.0;
+
+    final horizontalPadding = widget.listWidth.isFinite
+        ? (screenWidth - widget.listWidth) / 2
+        : 0.0;
+
     final listView = ListView(
       scrollDirection: widget.axis,
       controller: _scrollController,
       physics: widget.useSnapScrollPhysics
-        ? CustomPageScrollPhysics(kColumnViewportFraction: widget.listWidth / MediaQuery.sizeOf(context).width)
-        : null,
+          ? CustomPageScrollPhysics(kColumnViewportFraction: viewportFraction)
+          : null,
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+      clipBehavior: Clip.none,
       children: _buildOuterList(dragAndDropListTarget, parameters),
     );
 
