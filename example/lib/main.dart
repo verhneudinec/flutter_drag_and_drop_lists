@@ -26,7 +26,7 @@ class MyApp extends StatelessWidget {
       ),
       initialRoute: '/',
       routes: {
-        '/': (context) => const BasicExample(),
+        '/': (context) => const HorizontalExample(),
         '/list_tile_example': (context) => const ListTileExample(),
         '/expansion_tile_example': (context) => const ExpansionTileExample(),
         '/sliver_example': (context) => const SliverExample(),

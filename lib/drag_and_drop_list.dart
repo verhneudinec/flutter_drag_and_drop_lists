@@ -84,8 +84,11 @@ class DragAndDropList implements DragAndDropListInterface {
       ),
     );
     if (params.axis == Axis.horizontal) {
-      intrinsicHeight = SizedBox(
-        width: params.listWidth,
+        // final screenWidth = MediaQuery.of(context).size.width;
+          // final leftPadding = (screenWidth - params.listWidth) / 2;
+          
+          intrinsicHeight =  Container(
+              width: params.listWidth,
         child: intrinsicHeight,
       );
     }
@@ -118,11 +121,12 @@ class DragAndDropList implements DragAndDropListInterface {
     return InkWell(
       onTap: onTapCallback,
       child: DragTarget(
-        onWillAccept: (_) {
-          params.listOnWillAccept?.call(null, this);
-          return true;
-        },
-        builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) { 
+        // onWillAcceptWithDetails: (_) {
+        //   params.listOnWillAccept?.call(null, this);
+        //   return true;
+        // },
+
+        builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) {
           return Container(
             decoration: decoration ?? params.listDecoration,
             height: params.listHeigth,

@@ -851,7 +851,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       // Scroll left
       targetOffset = position.pixels - listWidth;
     } else if (pointerXPosition > (right - _scrollTriggerZone)) {
-      // Scroll right 
+      // Scroll right
       targetOffset = position.pixels + listWidth;
     }
 
@@ -860,7 +860,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
 
         _scrolling = true;
         _lastScrollTime = now;
-        
+
         scrollController.animateTo(
           targetOffset,
           duration: const Duration(milliseconds: 350),

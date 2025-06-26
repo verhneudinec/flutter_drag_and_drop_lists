@@ -1,4 +1,5 @@
 import 'package:drag_and_drop_lists/drag_and_drop_builder_parameters.dart';
+import 'package:drag_and_drop_lists/drag_and_drop_item.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_list_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
@@ -70,46 +71,74 @@ class _DragAndDropListTarget extends State<DragAndDropListTarget>
       visibleContents = SingleChildScrollView(child: visibleContents);
     }
 
-    return Stack(
-      children: <Widget>[
-        visibleContents,
-        Positioned.fill(
-          child: DragTarget<DragAndDropListInterface>(
-            builder: (context, candidateData, rejectedData) {
-              if (candidateData.isNotEmpty) {}
-              return Container();
-            },
-            onWillAcceptWithDetails: (details) {
-              bool accept = true;
-              if (widget.parameters.listTargetOnWillAccept != null) {
-                accept =
-                    widget.parameters.listTargetOnWillAccept!(details.data, widget);
-              }
-              if (accept && mounted) {
-                setState(() {
-                  _hoveredDraggable = details.data;
-                });
-              }
-              return accept;
-            },
-            onLeave: (data) {
-              if (mounted) {
-                setState(() {
-                  _hoveredDraggable = null;
-                });
-              }
-            },
-            onAcceptWithDetails: (details) {
-              if (mounted) {
-                setState(() {
-                  widget.onDropOnLastTarget(details.data, widget);
-                  _hoveredDraggable = null;
-                });
-              }
-            },
-          ),
-        ),
-      ],
+    return DragTarget(
+      hitTestBehavior: HitTestBehavior.opaque,
+      onWillAcceptWithDetails: (z){
+                  print('DragTarget! onWillAcceptWithDetails');
+                  return true;
+                },
+                onMove: (details) {
+                  print('DragTarget! onMove');
+        
+                },
+      builder: (context, candidateData, rejectedData) {
+        return Stack(
+          children: <Widget>[
+            visibleContents,
+            Positioned.fill(
+              child: DragTarget<DragAndDropListInterface>(
+                builder: (context, candidateData, rejectedData) {
+                  if (candidateData.isNotEmpty) {}
+                  return Container();
+                },
+                onWillAcceptWithDetails: (z){
+                  print('DragTarget! onWillAcceptWithDetails');
+                  return true;
+                },
+                onMove: (details) {
+                  print('DragTarget! onMove');
+        
+                },
+            ),),
+            // Positioned.fill(
+            //   child: DragTarget<DragAndDropListInterface>(
+            //     builder: (context, candidateData, rejectedData) {
+            //       if (candidateData.isNotEmpty) {}
+            //       return Container();
+            //     },
+            //     onWillAcceptWithDetails: (details) {
+            //       bool accept = true;
+            //       if (widget.parameters.listTargetOnWillAccept != null) {
+            //         accept =
+            //             widget.parameters.listTargetOnWillAccept!(details.data, widget);
+            //       }
+            //       if (accept && mounted) {
+            //         setState(() {
+            //           _hoveredDraggable = details.data;
+            //         });
+            //       }
+            //       return accept;
+            //     },
+            //     onLeave: (data) {
+            //       if (mounted) {
+            //         setState(() {
+            //           _hoveredDraggable = null;
+            //         });
+            //       }
+            //     },
+            //     onAcceptWithDetails: (details) {
+            //       if (mounted) {
+            //         setState(() {
+            //           widget.onDropOnLastTarget(details.data, widget);
+            //           _hoveredDraggable = null;
+            //         });
+            //       }
+            //     },
+            //   ),
+            // ),
+          ],
+        );
+      }
     );
   }
 }

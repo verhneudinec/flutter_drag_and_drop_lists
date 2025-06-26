@@ -54,7 +54,7 @@ class _DragAndDropListWrapper extends State<DragAndDropListWrapper>
             children: [
               Visibility(
                 visible: !_dragging,
-                child: dragAndDropListContents,
+                child: Text('121'),
               ),
               // dragAndDropListContents,
               Positioned(
@@ -97,20 +97,40 @@ class _DragAndDropListWrapper extends State<DragAndDropListWrapper>
           onDragCompleted: () => _setDragging(false),
           onDraggableCanceled: (_, __) => _setDragging(false),
           onDragEnd: (_) => _setDragging(false),
-          child: dragAndDropListContents,
-        );
-      } else {
-        draggable = Draggable<DragAndDropListInterface>(
-          data: widget.dragAndDropList,
-          axis: draggableAxis(),
-          feedback:
+          child: Container(
+            
+            
+            color: Colors.green.shade200,
+            child: DragTarget(
+              hitTestBehavior: HitTestBehavior.opaque,
+              onWillAcceptWithDetails: (details) {
+              if (widget.parameters.listOnWillAccept != null) {
+                return widget.parameters.listOnWillAccept!(null, widget.dragAndDropList);
+              }
+              return true;
+              },
+              onAcceptWithDetails: (details) {
+              // widget.parameters.onListReordered?.call(,null, widget.dragAndDropList);
+              },
+              builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) { 
+              return dragAndDropListContents;
+              },
+            )),
+          );
+          } else {
+          draggable = Draggable<DragAndDropListInterface>(
+            data: widget.dragAndDropList,
+            axis: draggableAxis(),
+            feedback:
               buildFeedbackWithoutHandle(context, dragAndDropListContents),
-          childWhenDragging: Container(),
-          onDragStarted: () => _setDragging(true),
-          onDragCompleted: () => _setDragging(false),
-          onDraggableCanceled: (_, __) => _setDragging(false),
+            childWhenDragging: Container(),
+            onDragStarted: () => _setDragging(true),
+            onDragCompleted: () => _setDragging(false),
+            onDraggableCanceled: (_, __) => _setDragging(false),
           onDragEnd: (_) => _setDragging(false),
-          child: dragAndDropListContents,
+          child: Container(
+            color: Colors.red,
+            child: dragAndDropListContents),
         );
       }
     } else {
