@@ -58,6 +58,7 @@ class DragAndDropBuilderParameters {
   final bool constrainDraggingAxis;
   final bool disableScrolling;
   final bool enableAnyDragDirection;
+  final Function(double height)? onListHeightChanged;
 
   DragAndDropBuilderParameters({
     this.onPointerMove,
@@ -98,5 +99,6 @@ class DragAndDropBuilderParameters {
     this.constrainDraggingAxis = true,
     this.disableScrolling = false,
     this.enableAnyDragDirection = false,
+    this.onListHeightChanged,
   });
 }

@@ -9,132 +9,171 @@ class HorizontalExample extends StatefulWidget {
   State createState() => _HorizontalExample();
 }
 
-class InnerList {
-  final String name;
-  List<String> children;
-  InnerList({required this.name, required this.children});
-}
-
 class _HorizontalExample extends State<HorizontalExample> {
-  late List<InnerList> _lists;
+  final List<DragAndDropList> _contents = <DragAndDropList>[];
+  double? _maxListHeight;
 
   @override
   void initState() {
     super.initState();
-
-    _lists = List.generate(9, (outerIndex) {
-      return InnerList(
-        name: outerIndex.toString(),
-        children: List.generate(12, (innerIndex) => '$outerIndex.$innerIndex'),
-      );
-    });
+    _contents.addAll([
+      DragAndDropList(
+        header: Container(
+          padding: const EdgeInsets.all(8.0),
+          decoration: BoxDecoration(
+            color: Colors.blue,
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: const Text(
+            'List 1',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+        children: <DragAndDropItem>[
+          DragAndDropItem(
+            child: Container(
+              height: 100,
+              child: const Card(
+                child: Center(child: Text('Item 1')),
+              ),
+            ),
+          ),
+          DragAndDropItem(
+            child: Container(
+              height: 150,
+              child: const Card(
+                child: Center(child: Text('Item 2')),
+              ),
+            ),
+          ),
+          DragAndDropItem(
+            child: Container(
+              height: 80,
+              child: const Card(
+                child: Center(child: Text('Item 3')),
+              ),
+            ),
+          ),
+        ],
+      ),
+      DragAndDropList(
+        header: Container(
+          padding: const EdgeInsets.all(8.0),
+          decoration: BoxDecoration(
+            color: Colors.green,
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: const Text(
+            'List 2',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+        children: <DragAndDropItem>[
+          DragAndDropItem(
+            child: Container(
+              height: 120,
+              child: const Card(
+                child: Center(child: Text('Item 4')),
+              ),
+            ),
+          ),
+          DragAndDropItem(
+            child: Container(
+              height: 90,
+              child: const Card(
+                child: Center(child: Text('Item 5')),
+              ),
+            ),
+          ),
+          DragAndDropItem(
+            child: Container(
+              height: 200,
+              child: const Card(
+                child: Center(child: Text('Item 6')),
+              ),
+            ),
+          ),
+        ],
+      ),
+      DragAndDropList(
+        header: Container(
+          padding: const EdgeInsets.all(8.0),
+          decoration: BoxDecoration(
+            color: Colors.orange,
+            borderRadius: BorderRadius.circular(8.0),
+          ),
+          child: const Text(
+            'List 3',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          ),
+        ),
+        children: <DragAndDropItem>[
+          DragAndDropItem(
+            child: Container(
+              height: 110,
+              child: const Card(
+                child: Center(child: Text('Item 7')),
+              ),
+            ),
+          ),
+          DragAndDropItem(
+            child: Container(
+              height: 130,
+              child: const Card(
+                child: Center(child: Text('Item 8')),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ]);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Horizontal'),
+        title: const Text('Horizontal Lists with Two-Phase Build'),
       ),
       drawer: const CustomNavigationDrawer(),
-      body: DragAndDropLists(
-        useSnapScrollPhysics: true,
-        children: List.generate(_lists.length, (index) => _buildList(index)),
-        onItemReorder: _onItemReorder,
-        onListReorder: _onListReorder,
-        axis: Axis.horizontal,
-        listWidth: MediaQuery.sizeOf(context).width * 0.9,
-        listDraggingWidth: 150,
-        listDecoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: const BorderRadius.all(Radius.circular(7.0)),
-          boxShadow: const <BoxShadow>[
-            BoxShadow(
-              color: Colors.black45,
-              spreadRadius: 3.0,
-              blurRadius: 6.0,
-              offset: Offset(2, 3),
-            ),
-          ],
-        ),
-        listPadding: const EdgeInsets.all(8.0),
-      ),
-    );
-  }
-
-  _buildList(int outerIndex) {
-    var innerList = _lists[outerIndex];
-    return DragAndDropList(
-      header: Row(
+      body: Column(
         children: <Widget>[
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(7.0)),
-                color: Colors.pink,
-              ),
-              padding: const EdgeInsets.all(10),
-              child: Text(
-                'Header ${innerList.name}',
-                style: Theme.of(context).primaryTextTheme.titleLarge,
-              ),
+          if (_maxListHeight != null)
+            Container(
+              padding: const EdgeInsets.all(8.0),
+              color: Colors.yellow,
+              child: Text('Max List Height: ${_maxListHeight!.toStringAsFixed(1)}'),
+            ),
+          Flexible(
+            flex: 10,
+            child: DragAndDropLists(
+              axis: Axis.horizontal,
+              listWidth: 200,
+              children: _contents,
+              onItemReorder: _onItemReorder,
+              onListReorder: _onListReorder,
+              enableTwoPhaseBuild: true,
+              onListHeightChanged: (height) {
+                print('List height measured: $height');
+              },
             ),
           ),
         ],
       ),
-      footer: Row(
-        children: <Widget>[
-          Expanded(
-            child: Container(
-              decoration: const BoxDecoration(
-                borderRadius:
-                    BorderRadius.vertical(bottom: Radius.circular(7.0)),
-                color: Colors.pink,
-              ),
-              padding: const EdgeInsets.all(10),
-              child: Text(
-                'Footer ${innerList.name}',
-                style: Theme.of(context).primaryTextTheme.titleLarge,
-              ),
-            ),
-          ),
-        ],
-      ),
-      leftSide: const VerticalDivider(
-        color: Colors.pink,
-        width: 1.5,
-        thickness: 1.5,
-      ),
-      rightSide: const VerticalDivider(
-        color: Colors.pink,
-        width: 1.5,
-        thickness: 1.5,
-      ),
-      children: List.generate(innerList.children.length,
-          (index) => _buildItem(innerList.children[index])),
     );
   }
 
-  _buildItem(String item) {
-    return DragAndDropItem(
-      child: ListTile(
-        title: Text(item),
-      ),
-    );
-  }
-
-  _onItemReorder(
-      int oldItemIndex, int oldListIndex, int newItemIndex, int newListIndex) {
+  _onItemReorder(int oldItemIndex, int oldListIndex, int newItemIndex, int newListIndex) {
     setState(() {
-      var movedItem = _lists[oldListIndex].children.removeAt(oldItemIndex);
-      _lists[newListIndex].children.insert(newItemIndex, movedItem);
+      final DragAndDropItem item = _contents[oldListIndex].children.removeAt(oldItemIndex);
+      _contents[newListIndex].children.insert(newItemIndex, item);
     });
   }
 
   _onListReorder(int oldListIndex, int newListIndex) {
     setState(() {
-      var movedList = _lists.removeAt(oldListIndex);
-      _lists.insert(newListIndex, movedList);
+      final DragAndDropList list = _contents.removeAt(oldListIndex);
+      _contents.insert(newListIndex, list);
     });
   }
 }

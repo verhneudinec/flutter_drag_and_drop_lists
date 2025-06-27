@@ -13,6 +13,7 @@ Two-level drag and drop reorderable lists.
 - Can be used in slivers
 - Prevent individual lists/elements from being able to be dragged
 - Easy to extend with custom layouts
+- **Two-phase building for horizontal lists** - automatically measures all list heights to find the maximum
 
 <p>
 <img src="https://raw.githubusercontent.com/philip-brink/DragAndDropLists/master/readme_images/basic.gif" width="180" title="Basic" alt="Basic list">
@@ -24,6 +25,27 @@ Two-level drag and drop reorderable lists.
 <img src="https://raw.githubusercontent.com/philip-brink/DragAndDropLists/master/readme_images/slivers.gif" width="180" title="Slivers" alt="Drag and drop lists using slivers">
 </p>
 
+## Two-Phase Building
+
+For horizontal lists, you can enable two-phase building to ensure all lists have the same height based on the tallest list:
+
+```dart
+DragAndDropLists(
+  axis: Axis.horizontal,
+  enableTwoPhaseBuild: true,
+  onListHeightChanged: (height) {
+    print('List height measured: $height');
+  },
+  // ... other parameters
+)
+```
+
+**How it works:**
+1. **Phase 1**: All lists are built without caching to measure their natural heights
+2. **Phase 2**: The maximum height is calculated and applied to all lists, returning to normal caching behavior
+
+This ensures that horizontal lists have consistent heights even when items have different heights.
+
 ## Usage
 To use this plugin, add `drag_and_drop_lists` as a [dependency in your pubspec.yaml file.](https://flutter.dev/docs/development/packages-and-plugins/using-packages)
 For example:
@@ -31,7 +53,7 @@ For example:
 ```
 dependencies:
   drag_and_drop_lists: ^0.4.0
-``` 
+```
 
 Now in your Dart code, you can use: `import 'package:drag_and_drop_lists/drag_and_drop_lists.dart';`
 

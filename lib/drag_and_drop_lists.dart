@@ -296,6 +296,16 @@ class DragAndDropLists extends StatefulWidget {
 
   final ScrollController? verticalScrollController;
 
+  final void Function(double height)? onListHeightChanged;
+
+  /// Enable two-phase building for horizontal lists to measure all items' heights
+  /// Phase 1: Build all items without caching to measure heights
+  /// Phase 2: Return to normal caching behavior
+  final bool enableTwoPhaseBuild;
+
+  /// Maximum height calculated from all lists during two-phase build
+  final double? maxListHeight;
+
   DragAndDropLists({
     required this.children,
     required this.onItemReorder,
@@ -351,6 +361,9 @@ class DragAndDropLists extends StatefulWidget {
     this.enableAnyDragDirection = false,
     this.onMoveUpdate,
     this.verticalScrollController,
+    this.onListHeightChanged,
+    this.enableTwoPhaseBuild = false,
+    this.maxListHeight,
     super.key,
   }) {
     if (listGhost == null &&
@@ -391,6 +404,11 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   final _scrollThrottle = const Duration(milliseconds: 1300);
   final _scrollTriggerZone = 50.0;
 
+  // for two-phase building
+  bool _isPhase1 = false;
+  Map<int, double> _measuredHeights = {};
+  double? _maxHeight;
+
   @override
   void initState() {
     if (widget.scrollController != null) {
@@ -399,7 +417,39 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       _scrollController = ScrollController();
     }
 
+    if (widget.enableTwoPhaseBuild && widget.axis == Axis.horizontal) {
+      _startTwoPhaseBuild();
+    }
+
     super.initState();
+  }
+
+  void _startTwoPhaseBuild() {
+    setState(() {
+      _isPhase1 = true;
+      _measuredHeights.clear();
+      _maxHeight = null;
+    });
+  }
+
+  void _onListHeightMeasured(int listIndex, double height) {
+    if (!_isPhase1) return;
+
+    _measuredHeights[listIndex] = height;
+
+    // Check if we've measured all lists
+    if (_measuredHeights.length == widget.children.length) {
+      _maxHeight = _measuredHeights.values.reduce((a, b) => a > b ? a : b);
+
+      // Switch to phase 2
+      setState(() {
+        _isPhase1 = false;
+      });
+    }
+  }
+
+  Function(double height) _createHeightCallback(int listIndex) {
+    return (height) => _onListHeightMeasured(listIndex, height);
   }
 
   @override
@@ -435,7 +485,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       listDecorationWhileDragging: widget.listDecorationWhileDragging,
       listInnerDecoration: widget.listInnerDecoration,
       listWidth: widget.listWidth,
-      listHeigth: widget.listHeigth,
+      listHeigth: _isPhase1 ? null : (widget.maxListHeight ?? _maxHeight ?? widget.listHeigth),
       lastItemTargetHeight: widget.lastItemTargetHeight,
       addLastItemTargetHeightToTop: widget.addLastItemTargetHeightToTop,
       listDragHandle: widget.listDragHandle,
@@ -443,6 +493,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       constrainDraggingAxis: widget.constrainDraggingAxis,
       disableScrolling: widget.disableScrolling,
       enableAnyDragDirection: widget.enableAnyDragDirection,
+      onListHeightChanged: widget.onListHeightChanged,
     );
 
     DragAndDropListTarget dragAndDropListTarget = DragAndDropListTarget(
@@ -526,16 +577,35 @@ class DragAndDropListsState extends State<DragAndDropLists> {
         ? (screenWidth - widget.listWidth) / 2
         : 0.0;
 
-    final listView = ListView(
-      scrollDirection: widget.axis,
-      controller: _scrollController,
-      physics: widget.useSnapScrollPhysics
-          ? CustomPageScrollPhysics(kColumnViewportFraction: viewportFraction)
-          : null,
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-      clipBehavior: Clip.none,
-      children: _buildOuterList(dragAndDropListTarget, parameters),
-    );
+    Widget listView;
+
+    if (_isPhase1 && widget.enableTwoPhaseBuild) {
+      // Phase 1: Build all items without caching to measure heights
+      listView = ListView.builder(
+        scrollDirection: widget.axis,
+        controller: _scrollController,
+        physics: const NeverScrollableScrollPhysics(), // Disable scrolling during measurement
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        clipBehavior: Clip.none,
+        itemCount: _calculateChildrenCount(widget.listDivider != null),
+        itemBuilder: (context, index) {
+          return _buildInnerList(index, _calculateChildrenCount(widget.listDivider != null),
+              dragAndDropListTarget, widget.listDivider != null, parameters);
+        },
+      );
+    } else {
+      // Phase 2: Normal ListView with caching
+      listView = ListView(
+        scrollDirection: widget.axis,
+        controller: _scrollController,
+        physics: widget.useSnapScrollPhysics
+            ? CustomPageScrollPhysics(kColumnViewportFraction: viewportFraction)
+            : null,
+        padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+        clipBehavior: Clip.none,
+        children: _buildOuterList(dragAndDropListTarget, parameters),
+      );
+    }
 
     return widget.removeTopPadding
         ? MediaQuery.removePadding(
@@ -578,10 +648,57 @@ class DragAndDropListsState extends State<DragAndDropLists> {
     } else if (includeSeparators && index.isOdd) {
       return widget.listDivider!;
     } else {
+      final listIndex = (includeSeparators ? index / 2 : index).toInt();
+
+      // Create parameters with correct height callback for phase 1
+      DragAndDropBuilderParameters listParameters = parameters;
+      if (_isPhase1 && widget.enableTwoPhaseBuild) {
+        listParameters = DragAndDropBuilderParameters(
+          listGhost: parameters.listGhost,
+          listGhostOpacity: parameters.listGhostOpacity,
+          listDraggingWidth: parameters.listDraggingWidth,
+          itemDraggingWidth: parameters.itemDraggingWidth,
+          listSizeAnimationDuration: parameters.listSizeAnimationDuration,
+          dragOnLongPress: parameters.dragOnLongPress,
+          listPadding: parameters.listPadding,
+          itemSizeAnimationDuration: parameters.itemSizeAnimationDuration,
+          onPointerDown: parameters.onPointerDown,
+          onPointerUp: parameters.onPointerUp,
+          onPointerMove: parameters.onPointerMove,
+          onItemReordered: parameters.onItemReordered,
+          onItemDropOnLastTarget: parameters.onItemDropOnLastTarget,
+          onListReordered: parameters.onListReordered,
+          onItemDraggingChanged: parameters.onItemDraggingChanged,
+          onListDraggingChanged: parameters.onListDraggingChanged,
+          listOnWillAccept: parameters.listOnWillAccept,
+          listTargetOnWillAccept: parameters.listTargetOnWillAccept,
+          itemOnWillAccept: parameters.itemOnWillAccept,
+          itemTargetOnWillAccept: parameters.itemTargetOnWillAccept,
+          itemGhostOpacity: parameters.itemGhostOpacity,
+          itemDivider: parameters.itemDivider,
+          itemDecorationWhileDragging: parameters.itemDecorationWhileDragging,
+          verticalAlignment: parameters.verticalAlignment,
+          axis: parameters.axis,
+          itemGhost: parameters.itemGhost,
+          listDecoration: parameters.listDecoration,
+          listDecorationWhileDragging: parameters.listDecorationWhileDragging,
+          listInnerDecoration: parameters.listInnerDecoration,
+          listWidth: parameters.listWidth,
+          listHeigth: null, // Let it measure naturally in phase 1
+          lastItemTargetHeight: parameters.lastItemTargetHeight,
+          addLastItemTargetHeightToTop: parameters.addLastItemTargetHeightToTop,
+          listDragHandle: parameters.listDragHandle,
+          itemDragHandle: parameters.itemDragHandle,
+          constrainDraggingAxis: parameters.constrainDraggingAxis,
+          disableScrolling: parameters.disableScrolling,
+          enableAnyDragDirection: parameters.enableAnyDragDirection,
+          onListHeightChanged: _createHeightCallback(listIndex),
+        );
+      }
+
       return DragAndDropListWrapper(
-        dragAndDropList:
-            widget.children[(includeSeparators ? index / 2 : index).toInt()],
-        parameters: parameters,
+        dragAndDropList: widget.children[listIndex],
+        parameters: listParameters,
       );
     }
   }
@@ -851,7 +968,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       // Scroll left
       targetOffset = position.pixels - listWidth;
     } else if (pointerXPosition > (right - _scrollTriggerZone)) {
-      // Scroll right 
+      // Scroll right
       targetOffset = position.pixels + listWidth;
     }
 
@@ -860,7 +977,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
 
         _scrolling = true;
         _lastScrollTime = now;
-        
+
         scrollController.animateTo(
           targetOffset,
           duration: const Duration(milliseconds: 350),
