@@ -46,6 +46,8 @@ class DragAndDropList implements DragAndDropListInterface {
 
   final void Function()? onTapCallback;
 
+  final void Function(double)? onListHeightChanged;
+
   /// Whether or not this item can be dragged.
   /// Set to true if it can be reordered.
   /// Set to false if it must remain fixed.
@@ -67,6 +69,7 @@ class DragAndDropList implements DragAndDropListInterface {
     this.verticalAlignment = CrossAxisAlignment.start,
     this.canDrag = true,
     this.onTapCallback,
+    this.onListHeightChanged,
   });
 
   @override
@@ -103,7 +106,7 @@ class DragAndDropList implements DragAndDropListInterface {
       contents.add(Flexible(child: footer!));
     }
 
-    final widget = Container(
+    final widget = SizedBox(
       key: key,
       width: params.axis == Axis.vertical
           ? double.infinity
@@ -115,23 +118,34 @@ class DragAndDropList implements DragAndDropListInterface {
       ),
     );
 
-    return InkWell(
+    final tapableWidget = InkWell(
       onTap: onTapCallback,
       child: DragTarget(
         onWillAccept: (_) {
           params.listOnWillAccept?.call(null, this);
           return true;
         },
-        builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) { 
+        builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) {
           return Container(
             decoration: decoration ?? params.listDecoration,
-            height: params.listHeigth,
+            height: (params.listHeigth != null && params.listPadding != null)
+                ? params.listHeigth! - params.listPadding!.vertical
+                : null,
             padding: params.listPadding,
             child: widget,
           );
         }
       ),
     );
+
+    if (onListHeightChanged != null) {
+      return _MeasuredWidget(
+        onMeasure: onListHeightChanged!,
+        child: tapableWidget,
+      );
+    }
+
+    return tapableWidget;
   }
 
   List<Widget> _generateDragAndDropListInnerContents(
@@ -202,5 +216,51 @@ class DragAndDropList implements DragAndDropListInterface {
       contents.add(rightSide!);
     }
     return contents;
+  }
+}
+
+class _MeasuredWidget extends StatefulWidget {
+  final Widget child;
+  final void Function(double) onMeasure;
+
+  const _MeasuredWidget({required this.child, required this.onMeasure});
+
+  @override
+  State<_MeasuredWidget> createState() => _MeasuredWidgetState();
+}
+
+class _MeasuredWidgetState extends State<_MeasuredWidget> {
+  final GlobalKey measureKey = GlobalKey();
+  double lastHeight = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(postFrameCallback);
+  }
+
+  void postFrameCallback(_) {
+    if (!mounted) return;
+
+    final context = measureKey.currentContext;
+    if (context != null) {
+      final RenderBox box = context.findRenderObject() as RenderBox;
+      final height = box.size.height;
+
+      if (lastHeight != height) {
+        lastHeight = height;
+        widget.onMeasure.call(height);
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback(postFrameCallback);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: measureKey,
+      child: widget.child,
+    );
   }
 }
