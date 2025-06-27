@@ -3,8 +3,8 @@ import 'package:drag_and_drop_lists/drag_and_drop_item.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_item_target.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_item_wrapper.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_list_interface.dart';
+import 'package:drag_and_drop_lists/measure_size.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 class DragAndDropList implements DragAndDropListInterface {
   /// The widget that is displayed at the top of the list.
@@ -46,6 +46,8 @@ class DragAndDropList implements DragAndDropListInterface {
 
   final void Function()? onTapCallback;
 
+  final void Function(double)? onListHeightChanged;
+
   /// Whether or not this item can be dragged.
   /// Set to true if it can be reordered.
   /// Set to false if it must remain fixed.
@@ -67,6 +69,7 @@ class DragAndDropList implements DragAndDropListInterface {
     this.verticalAlignment = CrossAxisAlignment.start,
     this.canDrag = true,
     this.onTapCallback,
+    this.onListHeightChanged,
   });
 
   @override
@@ -103,7 +106,7 @@ class DragAndDropList implements DragAndDropListInterface {
       contents.add(Flexible(child: footer!));
     }
 
-    final widget = Container(
+    final widget = SizedBox(
       key: key,
       width: params.axis == Axis.vertical
           ? double.infinity
@@ -115,23 +118,28 @@ class DragAndDropList implements DragAndDropListInterface {
       ),
     );
 
-    return InkWell(
+    final tapableWidget = InkWell(
       onTap: onTapCallback,
       child: DragTarget(
         onWillAccept: (_) {
           params.listOnWillAccept?.call(null, this);
           return true;
         },
-        builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) { 
+        builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) {
           return Container(
             decoration: decoration ?? params.listDecoration,
-            height: params.listHeigth,
+            height: (params.listHeigth != null && params.listPadding != null)
+                ? params.listHeigth! - params.listPadding!.vertical
+                : null,
             padding: params.listPadding,
             child: widget,
           );
         }
       ),
     );
+
+
+    return tapableWidget;
   }
 
   List<Widget> _generateDragAndDropListInnerContents(
@@ -167,15 +175,12 @@ class DragAndDropList implements DragAndDropListInterface {
       ));
       contents.add(
         Expanded(
-          child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
-            child: SizedBox(
-              height: parameters.listHeigth,
-              child: Column(
-                crossAxisAlignment: verticalAlignment,
-                mainAxisSize: MainAxisSize.max,
-                children: allChildren,
-              ),
+          child: MeasureSize(
+            onSizeChange: (size) => onListHeightChanged!(size!.height),
+            child: Column(
+              crossAxisAlignment: verticalAlignment,
+              mainAxisSize: MainAxisSize.max,
+              children: allChildren,
             ),
           ),
         ),
