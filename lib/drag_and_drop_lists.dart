@@ -296,6 +296,8 @@ class DragAndDropLists extends StatefulWidget {
 
   final ScrollController? verticalScrollController;
 
+  final double? cacheExtent;
+
   DragAndDropLists({
     required this.children,
     required this.onItemReorder,
@@ -351,6 +353,7 @@ class DragAndDropLists extends StatefulWidget {
     this.enableAnyDragDirection = false,
     this.onMoveUpdate,
     this.verticalScrollController,
+    this.cacheExtent,
     super.key,
   }) {
     if (listGhost == null &&
@@ -529,6 +532,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
     final listView = ListView(
       scrollDirection: widget.axis,
       controller: _scrollController,
+      cacheExtent: widget.cacheExtent,
       physics: widget.useSnapScrollPhysics
           ? CustomPageScrollPhysics(kColumnViewportFraction: viewportFraction)
           : null,
