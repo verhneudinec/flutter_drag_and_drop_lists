@@ -125,6 +125,9 @@ class DragAndDropList implements DragAndDropListInterface {
           params.listOnWillAccept?.call(null, this);
           return true;
         },
+        onAccept: (_) {
+          params.listOnWillAccept?.call(null, this);
+        },
         builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) {
           return Container(
             decoration: decoration ?? params.listDecoration,
