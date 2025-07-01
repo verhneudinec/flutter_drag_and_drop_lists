@@ -27,6 +27,7 @@ class DragAndDropBuilderParameters {
   final OnItemDropOnLastTarget? onItemDropOnLastTarget;
   final OnListReordered? onListReordered;
   final ListOnWillAccept? listOnWillAccept;
+  final ListOnAccept? listOnAccept;
   final ListTargetOnWillAccept? listTargetOnWillAccept;
   final OnListDraggingChanged? onListDraggingChanged;
   final ItemOnWillAccept? itemOnWillAccept;
@@ -68,6 +69,7 @@ class DragAndDropBuilderParameters {
     this.onListReordered,
     this.listDraggingWidth,
     this.listOnWillAccept,
+    this.listOnAccept,
     this.listTargetOnWillAccept,
     this.onListDraggingChanged,
     this.itemOnWillAccept,

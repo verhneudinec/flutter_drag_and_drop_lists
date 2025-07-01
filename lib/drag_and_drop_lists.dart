@@ -425,6 +425,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       onItemDraggingChanged: widget.onItemDraggingChanged,
       onListDraggingChanged: widget.onListDraggingChanged,
       listOnWillAccept: widget.listOnWillAccept,
+      listOnAccept: widget.listOnAccept,
       listTargetOnWillAccept: widget.listTargetOnWillAccept,
       itemOnWillAccept: widget.itemOnWillAccept,
       itemTargetOnWillAccept: widget.itemTargetOnWillAccept,
@@ -859,7 +860,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       // Scroll left
       targetOffset = position.pixels - listWidth;
     } else if (pointerXPosition > (right - _scrollTriggerZone)) {
-      // Scroll right 
+      // Scroll right
       targetOffset = position.pixels + listWidth;
     }
 
