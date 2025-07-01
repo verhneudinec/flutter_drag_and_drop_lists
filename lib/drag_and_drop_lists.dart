@@ -815,13 +815,17 @@ class DragAndDropListsState extends State<DragAndDropLists> {
     }
 
     if (newOffset != null && newOffset > 0) {
+      final isMoreThanMax = newOffset > position.maxScrollExtent;
       newOffset = newOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
       // Запускаем анимацию скролла и продолжаем скроллить, пока палец на экране
       _scrolling = true;
-      scrollController.animateTo(newOffset,
+
+      final offset = min(newOffset, scrollController.position.maxScrollExtent);
+
+      scrollController.animateTo(offset,
         duration: Duration(milliseconds: _duration), curve: Curves.linear).then((_) {
         _scrolling = false;
-        if (_pointerDown) _scrollList();
+        if (_pointerDown && !isMoreThanMax) _scrollList();
       });
     }
 
@@ -864,7 +868,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
 
         _scrolling = true;
         _lastScrollTime = now;
-        
+
         scrollController.animateTo(
           targetOffset,
           duration: const Duration(milliseconds: 350),
