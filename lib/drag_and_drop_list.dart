@@ -131,8 +131,8 @@ class DragAndDropList implements DragAndDropListInterface {
         builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) {
           return Container(
             decoration: decoration ?? params.listDecoration,
-            height: (params.listHeigth != null && params.listPadding != null)
-                ? params.listHeigth! - params.listPadding!.vertical
+            height: (params.listHeight != null && params.listPadding != null)
+                ? params.listHeight! - params.listPadding!.vertical
                 : null,
             padding: params.listPadding,
             child: widget,
@@ -194,7 +194,7 @@ class DragAndDropList implements DragAndDropListInterface {
           child: SingleChildScrollView(
             physics: const NeverScrollableScrollPhysics(),
             child: SizedBox(
-              height: parameters.listHeigth,
+              height: parameters.listHeight,
               child: DragAndDropItemTarget(
                 parent: this,
                 parameters: parameters,
