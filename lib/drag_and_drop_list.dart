@@ -48,6 +48,8 @@ class DragAndDropList implements DragAndDropListInterface {
 
   final void Function(double)? onListHeightChanged;
 
+  final Duration animationDuration;
+
   /// Whether or not this item can be dragged.
   /// Set to true if it can be reordered.
   /// Set to false if it must remain fixed.
@@ -70,6 +72,7 @@ class DragAndDropList implements DragAndDropListInterface {
     this.canDrag = true,
     this.onTapCallback,
     this.onListHeightChanged,
+    this.animationDuration = const Duration(milliseconds: 200),
   });
 
   @override
@@ -129,7 +132,9 @@ class DragAndDropList implements DragAndDropListInterface {
           params.listOnAccept?.call(this, this);
         },
         builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) {
-          return Container(
+          return AnimatedContainer(
+            duration: animationDuration,
+            curve: Curves.easeIn,
             decoration: decoration ?? params.listDecoration,
             height: (params.listHeight != null && params.listPadding != null)
                 ? params.listHeight! - params.listPadding!.vertical
