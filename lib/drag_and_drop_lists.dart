@@ -392,7 +392,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   // for horizontal snap scroll
   DateTime? _lastScrollTime;
   final _scrollThrottle = const Duration(milliseconds: 1300);
-  final _scrollTriggerZone = 50.0;
+  final _scrollTriggerZone = 25.0;
 
   @override
   void initState() {
@@ -741,7 +741,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   }
 
   final int _duration = 30; // in ms
-  final int _scrollAreaSize = 60;
+  final int _scrollAreaSize = 8;
   final double _overDragMin = 5.0;
   final double _overDragMax = 20.0;
   final double _overDragCoefficient = 3.3;
@@ -766,29 +766,16 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       var bottomRightOffset = localToGlobal(rb, size.bottomRight(Offset.zero));
 
       final verticalOffset = _scrollListVertical();
-      final directionality = Directionality.of(context);
-      final horizontalOffset = widget.useSnapScrollPhysics
+      double? horizontalOffset;
+
+      if (verticalOffset == null) {
+        horizontalOffset = widget.useSnapScrollPhysics
         ? _scrollListHorizontalWithSnapPhysics(topLeftOffset, bottomRightOffset)
-          : directionality == TextDirection.ltr
-            ? _scrollListHorizontalLtr(topLeftOffset, bottomRightOffset)
-            : _scrollListHorizontalRtl(topLeftOffset, bottomRightOffset);
+        : _scrollListHorizontal(topLeftOffset, bottomRightOffset);
+      }
 
-      // if (verticalOffset != null || horizontalOffset != null) {
-      //   // widget.onMoveUpdate?.call(_pointerYPosition, _pointerXPosition);
-      // }
-
-      // if (verticalOffset != 0) {
-      //   // newOffset = verticalOffset;
-      // } else {
-      //   newOffset = horizontalOffset;
-      // }
-
-      if (newOffset != null) {
-        _scrolling = true;
-        await _scrollController!.animateTo(newOffset,
-            duration: Duration(milliseconds: _duration), curve: Curves.linear);
-        _scrolling = false;
-        if (_pointerDown) _scrollList();
+      if (verticalOffset != null || horizontalOffset != null) {
+        widget.onMoveUpdate?.call(_pointerYPosition, _pointerXPosition);
       }
     }
   }
@@ -816,6 +803,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
     }
 
     if (newOffset != null && newOffset > 0) {
+      _lastScrollTime = DateTime.now().add(Duration(milliseconds: _duration));
       final isMoreThanMax = newOffset > position.maxScrollExtent;
       newOffset = newOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
       // Запускаем анимацию скролла и продолжаем скроллить, пока палец на экране
@@ -839,7 +827,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
     final pointerXPosition = _pointerXPosition;
     final scrollController = _scrollController;
 
-    if (scrollController == null || pointerXPosition == null) return 0.0;
+    if (scrollController == null || pointerXPosition == null || !_pointerDown) return 0.0;
 
     final position = scrollController.position;
     final double listWidth = widget.listWidth;
@@ -866,15 +854,14 @@ class DragAndDropListsState extends State<DragAndDropLists> {
 
     if (!_scrolling && _pointerDown && targetOffset != null) {
         targetOffset = targetOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
-
         _scrolling = true;
-        _lastScrollTime = now;
 
         scrollController.animateTo(
           targetOffset,
           duration: const Duration(milliseconds: 350),
           curve: Curves.linear
         ).then((_) {
+          _lastScrollTime = now.add(Duration(milliseconds: _duration));
           _scrolling = false;
           if (_pointerDown) _scrollList();
         });
@@ -883,11 +870,12 @@ class DragAndDropListsState extends State<DragAndDropLists> {
     return position.pixels;
   }
 
-  double? _scrollListHorizontalLtr(
+  double? _scrollListHorizontal(
       Offset topLeftOffset, Offset bottomRightOffset) {
     double left = topLeftOffset.dx;
     double right = bottomRightOffset.dx;
     double? newOffset;
+    const additionalScrollAmount = 50.0;
 
     var pointerXPosition = _pointerXPosition;
     var scrollController = _scrollController;
@@ -898,7 +886,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
         // scrolling toward minScrollExtent
         final overDrag = min(
             (left + _scrollAreaSize) - pointerXPosition + _overDragMin,
-            _overDragMax);
+            _overDragMax) + additionalScrollAmount;
         newOffset = max(scrollController.position.minScrollExtent,
             scrollController.position.pixels - overDrag / _overDragCoefficient);
       } else if (pointerXPosition > (right - _scrollAreaSize) &&
@@ -907,42 +895,27 @@ class DragAndDropListsState extends State<DragAndDropLists> {
         // scrolling toward maxScrollExtent
         final overDrag = min(
             pointerXPosition - (right - _scrollAreaSize) + _overDragMin,
-            _overDragMax);
+            _overDragMax) + additionalScrollAmount;
+
         newOffset = min(scrollController.position.maxScrollExtent,
             scrollController.position.pixels + overDrag / _overDragCoefficient);
-      }
-    }
+      } 
 
-    return newOffset;
-  }
+      final now = DateTime.now();
+      if (_pointerDown && newOffset != null) {
+        newOffset = newOffset.clamp(scrollController.position.minScrollExtent, scrollController.position.maxScrollExtent);
 
-  double? _scrollListHorizontalRtl(
-      Offset topLeftOffset, Offset bottomRightOffset) {
-    double left = topLeftOffset.dx;
-    double right = bottomRightOffset.dx;
-    double? newOffset;
+        _scrolling = true;
+        _lastScrollTime = now;
 
-    var pointerXPosition = _pointerXPosition;
-    var scrollController = _scrollController;
-    if (scrollController != null && pointerXPosition != null) {
-      if (pointerXPosition < (left + _scrollAreaSize) &&
-          scrollController.position.pixels <
-              scrollController.position.maxScrollExtent) {
-        // scrolling toward maxScrollExtent
-        final overDrag = min(
-            (left + _scrollAreaSize) - pointerXPosition + _overDragMin,
-            _overDragMax);
-        newOffset = min(scrollController.position.maxScrollExtent,
-            scrollController.position.pixels + overDrag / _overDragCoefficient);
-      } else if (pointerXPosition > (right - _scrollAreaSize) &&
-          scrollController.position.pixels >
-              scrollController.position.minScrollExtent) {
-        // scrolling toward minScrollExtent
-        final overDrag = min(
-            pointerXPosition - (right - _scrollAreaSize) + _overDragMin,
-            _overDragMax);
-        newOffset = max(scrollController.position.minScrollExtent,
-            scrollController.position.pixels - overDrag / _overDragCoefficient);
+        scrollController.animateTo(
+          newOffset,
+          duration: Duration(milliseconds: _duration),
+          curve: Curves.linear
+        ).then((_) {
+          _scrolling = false;
+          if (_pointerDown) _scrollList();
+        });
       }
     }
 
