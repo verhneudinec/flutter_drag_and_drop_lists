@@ -288,6 +288,8 @@ class DragAndDropLists extends StatefulWidget {
   /// https://github.com/flutter/flutter/issues/14842#issuecomment-371344881
   final bool removeTopPadding;
 
+  final double? horizontalPadding;
+
   final bool useSnapScrollPhysics;
 
   final bool enableAnyDragDirection;
@@ -349,6 +351,7 @@ class DragAndDropLists extends StatefulWidget {
     this.itemDragHandle,
     this.constrainDraggingAxis = true,
     this.removeTopPadding = false,
+    this.horizontalPadding,
     this.useSnapScrollPhysics = false,
     this.enableAnyDragDirection = false,
     this.onMoveUpdate,
@@ -526,9 +529,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
         ? widget.listWidth / screenWidth
         : 1.0;
 
-    final horizontalPadding = widget.listWidth.isFinite
-        ? (screenWidth - widget.listWidth) / 2
-        : 0.0;
+    final horizontalPadding = widget.horizontalPadding ?? (screenWidth - widget.listWidth) / 2;
 
     final listView = ListView(
       scrollDirection: widget.axis,
