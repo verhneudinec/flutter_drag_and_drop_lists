@@ -184,7 +184,7 @@ class DragAndDropList implements DragAndDropListInterface {
       contents.add(
         Expanded(
           child: MeasureSize(
-            onSizeChange: (size) => onListHeightChanged!(size!.height),
+            onSizeChange: (size) => onListHeightChanged?.call(size!.height),
             child: Column(
               crossAxisAlignment: verticalAlignment,
               mainAxisSize: MainAxisSize.max,

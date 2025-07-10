@@ -21,6 +21,7 @@ import 'package:drag_and_drop_lists/drag_and_drop_list_interface.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_list_target.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_list_wrapper.dart';
 import 'package:drag_and_drop_lists/drag_handle.dart';
+import 'package:drag_and_drop_lists/drag_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -83,6 +84,79 @@ typedef ItemTargetOnAccept = void Function(
   DragAndDropListInterface parentList,
   DragAndDropItemTarget target,
 );
+
+// class DragManager {
+//   DragAndDropItem? _draggingItem;
+//   DragAndDropListInterface? _draggingItemParent;
+//   bool _isDragging = false;
+//   List<DragAndDropListsState> _activeInstances = [];
+//   ScrollController? _sharedScrollController;
+
+//   void registerInstance(DragAndDropListsState instance) {
+//     if (!_activeInstances.contains(instance)) {
+//       _activeInstances.add(instance);
+//     }
+//   }
+
+//   void unregisterInstance(DragAndDropListsState instance) {
+//     _activeInstances.remove(instance);
+//   }
+
+//   void setSharedScrollController(ScrollController controller) {
+//     _sharedScrollController = controller;
+//   }
+
+//   void startDragging(DragAndDropItem item, DragAndDropListInterface? parent) {
+//     _draggingItem = item;
+//     _draggingItemParent = parent;
+//     _isDragging = true;
+//   }
+
+//   void stopDragging() {
+//     _draggingItem = null;
+//     _draggingItemParent = null;
+//     _isDragging = false;
+//   }
+
+//   bool get isDragging => _isDragging;
+//   DragAndDropItem? get draggingItem => _draggingItem;
+//   DragAndDropListInterface? get draggingItemParent => _draggingItemParent;
+//   ScrollController? get sharedScrollController => _sharedScrollController;
+
+//   // Метод для принудительного перемещения элемента в ближайший видимый список
+//   void forceMoveToVisibleList() {
+//     if (!_isDragging || _draggingItem == null) return;
+
+//     // Найти ближайший активный экземпляр
+//     DragAndDropListsState? nearestInstance;
+//     for (var instance in _activeInstances) {
+//       if (instance.mounted) {
+//         nearestInstance = instance;
+//         break;
+//       }
+//     }
+
+//     if (nearestInstance != null && nearestInstance.mounted) {
+//       if (nearestInstance.widget.children.isNotEmpty) {
+//         final targetList = nearestInstance.widget.children.first;
+//         if (nearestInstance.widget.onItemReorder != null) {
+//           int oldListIndex = -1;
+//           int oldItemIndex = -1;
+//           for (int i = 0; i < nearestInstance.widget.children.length; i++) {
+//             if (nearestInstance.widget.children[i] == _draggingItemParent) {
+//               oldListIndex = i;
+//               oldItemIndex = _draggingItemParent?.children?.indexWhere((e) => e == _draggingItem) ?? -1;
+//               break;
+//             }
+//           }
+//           if (oldListIndex != -1 && oldItemIndex != -1) {
+//             nearestInstance.widget.onItemReorder!(oldItemIndex, oldListIndex, 0, 0);
+//           }
+//         }
+//       }
+//     }
+//   }
+// }
 
 class DragAndDropLists extends StatefulWidget {
   /// The child lists to be displayed.
@@ -300,6 +374,8 @@ class DragAndDropLists extends StatefulWidget {
 
   final double? cacheExtent;
 
+  final DragManager? dragManager;
+
   DragAndDropLists({
     required this.children,
     required this.onItemReorder,
@@ -357,6 +433,7 @@ class DragAndDropLists extends StatefulWidget {
     this.onMoveUpdate,
     this.verticalScrollController,
     this.cacheExtent,
+    this.dragManager,
     super.key,
   }) {
     if (listGhost == null &&
@@ -395,17 +472,43 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   // for horizontal snap scroll
   DateTime? _lastScrollTime;
   final _scrollThrottle = const Duration(milliseconds: 1300);
-  final _scrollTriggerZone = 25.0;
+
+  DragManager? get dragManager => widget.dragManager;
+
+  // Геттер для доступа к _scrollController из DragManager
+  ScrollController? get scrollController => _scrollController;
 
   @override
   void initState() {
+    super.initState();
     if (widget.scrollController != null) {
       _scrollController = widget.scrollController;
     } else {
       _scrollController = ScrollController();
     }
+    dragManager?.registerInstance(this);
+  }
 
-    super.initState();
+  @override
+  void dispose() {
+    dragManager?.unregisterInstance(this);
+    super.dispose();
+  }
+
+  void _onItemDraggingChanged(DragAndDropItem item, bool dragging) {
+    if (dragging) {
+      DragAndDropListInterface? parent;
+      for (final list in widget.children) {
+        if (list.children?.contains(item) == true) {
+          parent = list;
+          break;
+        }
+      }
+      dragManager?.startDragging(item, parent);
+    } else {
+      dragManager?.stopDragging();
+    }
+    widget.onItemDraggingChanged?.call(item, dragging);
   }
 
   @override
@@ -419,13 +522,13 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       dragOnLongPress: widget.listDragOnLongPress,
       listPadding: widget.listPadding,
       itemSizeAnimationDuration: widget.itemSizeAnimationDurationMilliseconds,
-      onPointerDown: _onPointerDown,
-      onPointerUp: _onPointerUp,
-      onPointerMove:  _onPointerMove,
+      onPointerDown: dragManager?.onPointerDown ?? _onPointerDown,
+      onPointerUp: dragManager?.onPointerUp ?? _onPointerUp,
+      onPointerMove: dragManager?.onPointerMove ?? _onPointerMove,
       onItemReordered: _internalOnItemReorder,
       onItemDropOnLastTarget: _internalOnItemDropOnLastTarget,
       onListReordered: _internalOnListReorder,
-      onItemDraggingChanged: widget.onItemDraggingChanged,
+      onItemDraggingChanged: _onItemDraggingChanged,
       onListDraggingChanged: widget.onListDraggingChanged,
       listOnWillAccept: widget.listOnWillAccept,
       listOnAccept: widget.listOnAccept,
@@ -723,205 +826,181 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   }
 
   _onPointerMove(PointerMoveEvent event) {
-    if (_pointerDown) {
+    if (_pointerDown && mounted) {
       _pointerYPosition = event.position.dy;
       _pointerXPosition = event.position.dx;
-
-      _scrollList();
     }
   }
 
   _onPointerDown(PointerDownEvent event) {
-    _pointerDown = true;
-    _pointerYPosition = event.position.dy;
-    _pointerXPosition = event.position.dx;
+    if (mounted) {
+      _pointerDown = true;
+      _pointerYPosition = event.position.dy;
+      _pointerXPosition = event.position.dx;
+    }
   }
 
   _onPointerUp(PointerUpEvent event) {
-    _pointerDown = false;
-  }
-
-  final int _duration = 30; // in ms
-  final int _scrollAreaSize = 8;
-  final double _overDragMin = 5.0;
-  final double _overDragMax = 20.0;
-  final double _overDragCoefficient = 3.3;
-
-  _scrollList() async {
-    if (!widget.disableScrolling &&
-        !_scrolling &&
-        _pointerDown &&
-        _pointerYPosition != null &&
-        _pointerXPosition != null) {
-      double? newOffset;
-
-      var rb = context.findRenderObject()!;
-      late Size size;
-      if (rb is RenderBox) {
-        size = rb.size;
-      } else if (rb is RenderSliver) {
-        size = rb.paintBounds.size;
-      }
-
-      var topLeftOffset = localToGlobal(rb, Offset.zero);
-      var bottomRightOffset = localToGlobal(rb, size.bottomRight(Offset.zero));
-
-      final verticalOffset = _scrollListVertical();
-      double? horizontalOffset;
-
-      if (verticalOffset == null) {
-        horizontalOffset = widget.useSnapScrollPhysics
-        ? _scrollListHorizontalWithSnapPhysics(topLeftOffset, bottomRightOffset)
-        : _scrollListHorizontal(topLeftOffset, bottomRightOffset);
-      }
-
-      if (verticalOffset != null || horizontalOffset != null) {
-        widget.onMoveUpdate?.call(_pointerYPosition, _pointerXPosition);
-      }
+    if (mounted) {
+      _pointerDown = false;
     }
   }
 
-  double? _scrollListVertical() {
-    final pointerYPosition = _pointerYPosition;
-    final scrollController = widget.verticalScrollController ?? _scrollController;
+  // double? _scrollListVertical() {
+  //   final pointerYPosition = _pointerYPosition;
+  //   final scrollController = widget.verticalScrollController ?? _scrollController;
 
-    if (scrollController == null || pointerYPosition == null) return null;
+  //   if (scrollController == null || pointerYPosition == null) return null;
 
-    final position = scrollController.position;
-    final viewportHeight = position.viewportDimension;
+  //   final position = scrollController.position;
+  //   final viewportHeight = position.viewportDimension;
 
-    const top = 80.0;
-    final bottom = viewportHeight;
+  //   const top = 80.0;
+  //   final bottom = viewportHeight;
 
-    double? newOffset;
+  //   double? newOffset;
 
-    if (pointerYPosition < (top + _scrollAreaSize)) {
-      final overDrag = max((top + _scrollAreaSize) - pointerYPosition, _overDragMax);
-      newOffset = position.pixels - overDrag / _overDragCoefficient;
-    } else if (pointerYPosition > (bottom - _scrollAreaSize)) {
-      final overDrag = max(pointerYPosition - (bottom - _scrollAreaSize), _overDragMax);
-      newOffset = position.pixels + overDrag / _overDragCoefficient;
-    }
+  //   if (pointerYPosition < (top + _scrollAreaSize)) {
+  //     final overDrag = max((top + _scrollAreaSize) - pointerYPosition, _overDragMax);
+  //     newOffset = position.pixels - overDrag / _overDragCoefficient;
+  //   } else if (pointerYPosition > (bottom - _scrollAreaSize)) {
+  //     final overDrag = max(pointerYPosition - (bottom - _scrollAreaSize), _overDragMax);
+  //     newOffset = position.pixels + overDrag / _overDragCoefficient;
+  //   }
 
-    if (newOffset != null && newOffset > 0) {
-      _lastScrollTime = DateTime.now().add(Duration(milliseconds: _duration));
-      final isMoreThanMax = newOffset > position.maxScrollExtent;
-      newOffset = newOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
-      // Запускаем анимацию скролла и продолжаем скроллить, пока палец на экране
-      _scrolling = true;
+  //   if (newOffset != null && newOffset > 0) {
+  //     final isMoreThanMax = newOffset > position.maxScrollExtent;
+  //     newOffset = newOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
+  //     // Запускаем анимацию скролла и продолжаем скроллить, пока палец на экране
+  //     _scrolling = true;
 
-      final offset = min(newOffset, scrollController.position.maxScrollExtent);
+  //     final offset = min(newOffset, scrollController.position.maxScrollExtent);
 
-      scrollController.animateTo(offset,
-        duration: Duration(milliseconds: _duration), curve: Curves.linear).then((_) {
-        _scrolling = false;
-        if (_pointerDown && !isMoreThanMax) _scrollList();
-      });
-    }
+  //     scrollController.animateTo(offset,
+  //       duration: Duration(milliseconds: _duration), curve: Curves.linear).then((_) {
+  //       _scrolling = false;
+  //       if (_pointerDown && !isMoreThanMax) _scrollList();
+  //     });
+  //   }
 
-    return newOffset;
-  }
-
+  //   return newOffset;
+  // }
 
 
-  double _scrollListHorizontalWithSnapPhysics(Offset topLeftOffset, Offset bottomRightOffset) {
-    final pointerXPosition = _pointerXPosition;
-    final scrollController = _scrollController;
 
-    if (scrollController == null || pointerXPosition == null || !_pointerDown) return 0.0;
+  // double _scrollListHorizontalWithSnapPhysics(Offset topLeftOffset, Offset bottomRightOffset) {
+  //   final pointerXPosition = _pointerXPosition;
+  //   final scrollController = _scrollController;
 
-    final position = scrollController.position;
-    final double listWidth = widget.listWidth;
-    double left = topLeftOffset.dx;
-    double right = bottomRightOffset.dx;
+  //   if (scrollController == null || pointerXPosition == null || _scrolling) return 0.0;
 
-    // Check if enough time has passed since last scroll
-    final now = DateTime.now();
-    if (_lastScrollTime != null) {
-      if (now.difference(_lastScrollTime!) < _scrollThrottle) {
-        return position.pixels;
-      }
-    }
+  //   final position = scrollController.position;
+  //   final double listWidth = widget.listWidth;
+  //   double left = topLeftOffset.dx;
+  //   double right = bottomRightOffset.dx;
 
-    double? targetOffset;
+  //   // Check if enough time has passed since last scroll
+  //   final now = DateTime.now();
+  //   if (_lastScrollTime != null) {
+  //     if (now.difference(_lastScrollTime!) < _scrollThrottle) {
+  //       return position.pixels;
+  //     }
+  //   }
 
-    if (pointerXPosition < (left + _scrollTriggerZone)) {
-      // Scroll left
-      targetOffset = position.pixels - listWidth;
-    } else if (pointerXPosition > (right - _scrollTriggerZone)) {
-      // Scroll right
-      targetOffset = position.pixels + listWidth;
-    }
+  //   double? targetOffset;
 
-    if (!_scrolling && _pointerDown && targetOffset != null) {
-        targetOffset = targetOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
-        _scrolling = true;
+  //   if (pointerXPosition < (left + _scrollTriggerZone)) {
+  //     // Scroll left
+  //     targetOffset = position.pixels - listWidth;
+  //   } else if (pointerXPosition > (right - _scrollTriggerZone)) {
+  //     // Scroll right
+  //     targetOffset = position.pixels + listWidth;
+  //   }
 
-        scrollController.animateTo(
-          targetOffset,
-          duration: const Duration(milliseconds: 350),
-          curve: Curves.linear
-        ).then((_) {
-          _lastScrollTime = now.add(Duration(milliseconds: _duration));
-          _scrolling = false;
-          if (_pointerDown) _scrollList();
-        });
-      }
+  //   if (!_scrolling && _pointerDown && targetOffset != null) {
+  //       targetOffset = targetOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
 
-    return position.pixels;
-  }
+  //       _scrolling = true;
+  //       _lastScrollTime = now;
 
-  double? _scrollListHorizontal(
-      Offset topLeftOffset, Offset bottomRightOffset) {
-    double left = topLeftOffset.dx;
-    double right = bottomRightOffset.dx;
-    double? newOffset;
-    const additionalScrollAmount = 50.0;
+  //       scrollController.animateTo(
+  //         targetOffset,
+  //         duration: const Duration(milliseconds: 350),
+  //         curve: Curves.linear
+  //       ).then((_) {
+  //         _scrolling = false;
+  //         if (_pointerDown) _scrollList();
+  //       });
+  //     }
 
-    var pointerXPosition = _pointerXPosition;
-    var scrollController = _scrollController;
-    if (scrollController != null && pointerXPosition != null) {
-      if (pointerXPosition < (left + _scrollAreaSize) &&
-          scrollController.position.pixels >
-              scrollController.position.minScrollExtent) {
-        // scrolling toward minScrollExtent
-        final overDrag = min(
-            (left + _scrollAreaSize) - pointerXPosition + _overDragMin,
-            _overDragMax) + additionalScrollAmount;
-        newOffset = max(scrollController.position.minScrollExtent,
-            scrollController.position.pixels - overDrag / _overDragCoefficient);
-      } else if (pointerXPosition > (right - _scrollAreaSize) &&
-          scrollController.position.pixels <
-              scrollController.position.maxScrollExtent) {
-        // scrolling toward maxScrollExtent
-        final overDrag = min(
-            pointerXPosition - (right - _scrollAreaSize) + _overDragMin,
-            _overDragMax) + additionalScrollAmount;
+  //   return position.pixels;
+  // }
 
-        newOffset = min(scrollController.position.maxScrollExtent,
-            scrollController.position.pixels + overDrag / _overDragCoefficient);
-      } 
+  // double? _scrollListHorizontalLtr(
+  //     Offset topLeftOffset, Offset bottomRightOffset) {
+  //   double left = topLeftOffset.dx;
+  //   double right = bottomRightOffset.dx;
+  //   double? newOffset;
 
-      final now = DateTime.now();
-      if (_pointerDown && newOffset != null) {
-        newOffset = newOffset.clamp(scrollController.position.minScrollExtent, scrollController.position.maxScrollExtent);
+  //   var pointerXPosition = _pointerXPosition;
+  //   var scrollController = _scrollController;
+  //   if (scrollController != null && pointerXPosition != null) {
+  //     if (pointerXPosition < (left + _scrollAreaSize) &&
+  //         scrollController.position.pixels >
+  //             scrollController.position.minScrollExtent) {
+  //       // scrolling toward minScrollExtent
+  //       final overDrag = min(
+  //           (left + _scrollAreaSize) - pointerXPosition + _overDragMin,
+  //           _overDragMax);
+  //       newOffset = max(scrollController.position.minScrollExtent,
+  //           scrollController.position.pixels - overDrag / _overDragCoefficient);
+  //     } else if (pointerXPosition > (right - _scrollAreaSize) &&
+  //         scrollController.position.pixels <
+  //             scrollController.position.maxScrollExtent) {
+  //       // scrolling toward maxScrollExtent
+  //       final overDrag = min(
+  //           pointerXPosition - (right - _scrollAreaSize) + _overDragMin,
+  //           _overDragMax);
+  //       newOffset = min(scrollController.position.maxScrollExtent,
+  //           scrollController.position.pixels + overDrag / _overDragCoefficient);
+  //     }
+  //   }
 
-        _scrolling = true;
-        _lastScrollTime = now;
+  //   return newOffset;
+  // }
 
-        scrollController.animateTo(
-          newOffset,
-          duration: Duration(milliseconds: _duration),
-          curve: Curves.linear
-        ).then((_) {
-          _scrolling = false;
-          if (_pointerDown) _scrollList();
-        });
-      }
-    }
+  // double? _scrollListHorizontalRtl(
+  //     Offset topLeftOffset, Offset bottomRightOffset) {
+  //   double left = topLeftOffset.dx;
+  //   double right = bottomRightOffset.dx;
+  //   double? newOffset;
 
-    return newOffset;
-  }
+  //   var pointerXPosition = _pointerXPosition;
+  //   var scrollController = _scrollController;
+  //   if (scrollController != null && pointerXPosition != null) {
+  //     if (pointerXPosition < (left + _scrollAreaSize) &&
+  //         scrollController.position.pixels <
+  //             scrollController.position.maxScrollExtent) {
+  //       // scrolling toward maxScrollExtent
+  //       final overDrag = min(
+  //           (left + _scrollAreaSize) - pointerXPosition + _overDragMin,
+  //           _overDragMax);
+  //       newOffset = min(scrollController.position.maxScrollExtent,
+  //           scrollController.position.pixels + overDrag / _overDragCoefficient);
+  //     } else if (pointerXPosition > (right - _scrollAreaSize) &&
+  //         scrollController.position.pixels >
+  //             scrollController.position.minScrollExtent) {
+  //       // scrolling toward minScrollExtent
+  //       final overDrag = min(
+  //           pointerXPosition - (right - _scrollAreaSize) + _overDragMin,
+  //           _overDragMax);
+  //       newOffset = max(scrollController.position.minScrollExtent,
+  //           scrollController.position.pixels - overDrag / _overDragCoefficient);
+  //     }
+  //   }
+
+  //   return newOffset;
+  // }
 
   static Offset localToGlobal(RenderObject object, Offset point,
       {RenderObject? ancestor}) {
