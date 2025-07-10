@@ -1,4 +1,5 @@
 import 'package:drag_and_drop_lists/drag_and_drop_lists.dart';
+import 'package:drag_and_drop_lists/drag_manager.dart';
 import 'package:example/custom_navigation_drawer.dart';
 import 'package:flutter/material.dart';
 
@@ -17,10 +18,18 @@ class InnerList {
 
 class _HorizontalExample extends State<HorizontalExample> {
   late List<InnerList> _lists;
+  // Создаем экземпляр DragManager для управления перетаскиванием
+  final DragManager _dragManager = DragManager();
+  ScrollController? _scrollController;
 
   @override
   void initState() {
     super.initState();
+
+    // Инициализируем ScrollController
+    _scrollController = ScrollController();
+    // Передаем контроллер скролла в DragManager
+    _dragManager.setSharedScrollController(_scrollController!);
 
     _lists = List.generate(9, (outerIndex) {
       return InnerList(
@@ -31,33 +40,47 @@ class _HorizontalExample extends State<HorizontalExample> {
   }
 
   @override
+  void dispose() {
+    // Очищаем ресурсы при уничтожении виджета
+    _scrollController?.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Horizontal'),
       ),
       drawer: const CustomNavigationDrawer(),
-      body: DragAndDropLists(
-        useSnapScrollPhysics: true,
-        children: List.generate(_lists.length, (index) => _buildList(index)),
-        onItemReorder: _onItemReorder,
-        onListReorder: _onListReorder,
-        axis: Axis.horizontal,
-        listWidth: MediaQuery.sizeOf(context).width * 0.9,
-        listDraggingWidth: 150,
-        listDecoration: BoxDecoration(
-          color: Colors.grey[200],
-          borderRadius: const BorderRadius.all(Radius.circular(7.0)),
-          boxShadow: const <BoxShadow>[
-            BoxShadow(
-              color: Colors.black45,
-              spreadRadius: 3.0,
-              blurRadius: 6.0,
-              offset: Offset(2, 3),
-            ),
-          ],
+      body: Listener(
+        onPointerDown: _dragManager.onPointerDown,
+        onPointerUp: _dragManager.onPointerUp,
+        onPointerMove: _dragManager.onPointerMove,
+        child: DragAndDropLists(
+          useSnapScrollPhysics: true,
+          children: List.generate(_lists.length, (index) => _buildList(index)),
+          onItemReorder: _onItemReorder,
+          onListReorder: _onListReorder,
+          axis: Axis.horizontal,
+          listWidth: MediaQuery.sizeOf(context).width * 0.9,
+          listDraggingWidth: 150,
+          scrollController: _scrollController,
+          dragManager: _dragManager, // Передаем DragManager для блокировки горизонтального скролла при вертикальном
+          listDecoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: const BorderRadius.all(Radius.circular(7.0)),
+            boxShadow: const <BoxShadow>[
+              BoxShadow(
+                color: Colors.black45,
+                spreadRadius: 3.0,
+                blurRadius: 6.0,
+                offset: Offset(2, 3),
+              ),
+            ],
+          ),
+          listPadding: const EdgeInsets.all(8.0),
         ),
-        listPadding: const EdgeInsets.all(8.0),
       ),
     );
   }
