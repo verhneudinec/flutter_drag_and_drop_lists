@@ -12,8 +12,6 @@
 /// be locked individually.
 library drag_and_drop_lists;
 
-import 'dart:math';
-
 import 'package:drag_and_drop_lists/drag_and_drop_builder_parameters.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_item.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_item_target.dart';
@@ -35,6 +33,7 @@ export 'package:drag_and_drop_lists/drag_and_drop_list_expansion.dart';
 export 'package:drag_and_drop_lists/drag_and_drop_list_target.dart';
 export 'package:drag_and_drop_lists/drag_and_drop_list_wrapper.dart';
 export 'package:drag_and_drop_lists/drag_handle.dart';
+export 'package:drag_and_drop_lists/drag_manager.dart';
 
 typedef OnItemReorder = void Function(
   int oldItemIndex,
@@ -155,7 +154,6 @@ typedef ItemTargetOnAccept = void Function(
 //         }
 //       }
 //     }
-//   }
 // }
 
 class DragAndDropLists extends StatefulWidget {
@@ -466,16 +464,14 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   bool _pointerDown = false;
   double? _pointerYPosition;
   double? _pointerXPosition;
-  bool _scrolling = false;
   final PageStorageBucket _pageStorageBucket = PageStorageBucket();
 
-  // for horizontal snap scroll
-  DateTime? _lastScrollTime;
-  final _scrollThrottle = const Duration(milliseconds: 1300);
+  // Flag to block horizontal scroll during vertical scroll
+  bool _isVerticalScrolling = false;
 
   DragManager? get dragManager => widget.dragManager;
 
-  // Геттер для доступа к _scrollController из DragManager
+  // Getter for accessing _scrollController from DragManager
   ScrollController? get scrollController => _scrollController;
 
   @override
@@ -486,7 +482,12 @@ class DragAndDropListsState extends State<DragAndDropLists> {
     } else {
       _scrollController = ScrollController();
     }
+
+    // Register instance in DragManager and set scroll controller
     dragManager?.registerInstance(this);
+    if (_scrollController != null) {
+      dragManager?.setSharedScrollController(_scrollController!);
+    }
   }
 
   @override
@@ -829,6 +830,16 @@ class DragAndDropListsState extends State<DragAndDropLists> {
     if (_pointerDown && mounted) {
       _pointerYPosition = event.position.dy;
       _pointerXPosition = event.position.dx;
+
+      // If DragManager is used, it manages the blocking of
+      // horizontal scroll during vertical scrolling itself
+      if (dragManager != null) {
+        // DragManager already contains blocking logic
+        return;
+      }
+
+      // Fallback for cases without DragManager
+      _checkAndBlockHorizontalScrolling();
     }
   }
 
@@ -843,8 +854,33 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   _onPointerUp(PointerUpEvent event) {
     if (mounted) {
       _pointerDown = false;
+      // Reset vertical scrolling flag when pointer is released
+      _isVerticalScrolling = false;
     }
   }
+
+  /// Checks if vertical scrolling is occurring and blocks horizontal scroll if necessary
+  void _checkAndBlockHorizontalScrolling() {
+    if (_pointerYPosition == null || _pointerXPosition == null) return;
+
+    final scrollController = widget.verticalScrollController ?? _scrollController;
+    if (scrollController == null) return;
+
+    final position = scrollController.position;
+    const scrollAreaSize = 60.0;
+    const topBoundary = 80.0;
+    final bottomBoundary = position.viewportDimension;
+
+    // Check if pointer is in vertical scroll zone
+    bool inVerticalScrollZone = (_pointerYPosition! < (topBoundary + scrollAreaSize)) ||
+                               (_pointerYPosition! > (bottomBoundary - scrollAreaSize));
+
+    // Set flag to block horizontal scroll
+    _isVerticalScrolling = inVerticalScrollZone;
+  }
+
+  /// Getter to check vertical scrolling state
+  bool get isVerticalScrolling => _isVerticalScrolling;
 
   // double? _scrollListVertical() {
   //   final pointerYPosition = _pointerYPosition;

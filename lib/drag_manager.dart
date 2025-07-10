@@ -12,7 +12,6 @@ class DragManager {
   List<DragAndDropListsState> _activeInstances = [];
   ScrollController? _sharedScrollController;
 
-  // Состояние скролла
   bool _pointerDown = false;
   double? _pointerYPosition;
   double? _pointerXPosition;
@@ -25,6 +24,7 @@ class DragManager {
   final double _overDragMin = 5.0;
   final double _overDragMax = 20.0;
   final double _overDragCoefficient = 3.3;
+  final double _overDragCoefficientUp = 2.5; // Faster upward scrolling
 
   void registerInstance(DragAndDropListsState instance) {
     if (!_activeInstances.contains(instance)) {
@@ -50,6 +50,7 @@ class DragManager {
     _draggingItem = null;
     _draggingItemParent = null;
     _isDragging = false;
+    resetScrollState(); // Reset scroll state when stopping dragging
   }
 
   bool get isDragging => _isDragging;
@@ -57,7 +58,7 @@ class DragManager {
   DragAndDropListInterface? get draggingItemParent => _draggingItemParent;
   ScrollController? get sharedScrollController => _sharedScrollController;
 
-  // Методы для управления скроллом
+  // Methods for scroll management
   void onPointerMove(PointerMoveEvent event) {
     if (_pointerDown) {
       _pointerYPosition = event.position.dy;
@@ -74,7 +75,12 @@ class DragManager {
 
   void onPointerUp(PointerUpEvent event) {
     _pointerDown = false;
+    // Reset vertical scrolling flag when pointer is released
+    _isVerticalScrolling = false;
   }
+
+  // Flag to track if vertical scrolling is currently in progress
+  bool _isVerticalScrolling = false;
 
   void scrollList() async {
     if (!_scrolling &&
@@ -82,7 +88,7 @@ class DragManager {
         _pointerYPosition != null &&
         _pointerXPosition != null) {
 
-      // Найти активный экземпляр для получения контекста
+      // Find active instance to get context
       DragAndDropListsState? activeInstance;
       for (var instance in _activeInstances) {
         if (instance.mounted) {
@@ -104,10 +110,15 @@ class DragManager {
       var topLeftOffset = localToGlobal(rb, Offset.zero);
       var bottomRightOffset = localToGlobal(rb, size.bottomRight(Offset.zero));
 
+      // First check vertical scroll
       final verticalOffset = scrollListVertical(activeInstance);
-      double? horizontalOffset;
 
-      if (verticalOffset == null) {
+      // Set vertical scrolling flag
+      _isVerticalScrolling = verticalOffset != null;
+
+      // Start horizontal scroll only if no vertical scrolling
+      double? horizontalOffset;
+      if (!_isVerticalScrolling) {
         horizontalOffset = activeInstance.widget.useSnapScrollPhysics
         ? scrollListHorizontalWithSnapPhysics(topLeftOffset, bottomRightOffset, activeInstance)
         : scrollListHorizontal(topLeftOffset, bottomRightOffset, activeInstance);
@@ -134,19 +145,25 @@ class DragManager {
 
     double? newOffset;
 
+    // Reset vertical scrolling flag by default
+    _isVerticalScrolling = false;
+
     if (pointerYPosition < (top + _scrollAreaSize)) {
       final overDrag = max((top + _scrollAreaSize) - pointerYPosition, _overDragMax);
-      newOffset = position.pixels - overDrag / _overDragCoefficient;
+      newOffset = position.pixels - overDrag / _overDragCoefficientUp; // Use faster coefficient for upward scroll
     } else if (pointerYPosition > (bottom - _scrollAreaSize)) {
       final overDrag = max(pointerYPosition - (bottom - _scrollAreaSize), _overDragMax);
-      newOffset = position.pixels + overDrag / _overDragCoefficient;
+      newOffset = position.pixels + overDrag / _overDragCoefficient; // Use normal coefficient for downward scroll
     }
 
     if (newOffset != null && newOffset > 0) {
       _lastScrollTime = DateTime.now().add(Duration(milliseconds: _duration));
       final isMoreThanMax = newOffset > position.maxScrollExtent;
       newOffset = newOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
-      // Запускаем анимацию скролла и продолжаем скроллить, пока палец на экране
+
+      _isVerticalScrolling = true;
+
+      // Start scroll animation and continue scrolling while finger is on screen
       _scrolling = true;
 
       final offset = min(newOffset, scrollController.position.maxScrollExtent);
@@ -155,6 +172,8 @@ class DragManager {
         duration: Duration(milliseconds: _duration), curve: Curves.linear).then((_) {
         _scrolling = false;
         if (_pointerDown && !isMoreThanMax) scrollList();
+      }).then((_) {
+        _isVerticalScrolling = false;
       });
     }
 
@@ -164,6 +183,9 @@ class DragManager {
 
 
   double scrollListHorizontalWithSnapPhysics(Offset topLeftOffset, Offset bottomRightOffset, DragAndDropListsState activeInstance) {
+    // If vertical scrolling is in progress, don't perform horizontal scrolling
+    if (_isVerticalScrolling) return 0.0;
+
     final pointerXPosition = _pointerXPosition;
     final scrollController = activeInstance.scrollController;
 
@@ -212,6 +234,9 @@ class DragManager {
 
   double? scrollListHorizontal(
       Offset topLeftOffset, Offset bottomRightOffset, DragAndDropListsState activeInstance) {
+    // If vertical scrolling is in progress, don't perform horizontal scrolling
+    if (_isVerticalScrolling) return null;
+
     double left = topLeftOffset.dx;
     double right = bottomRightOffset.dx;
     double? newOffset;
@@ -276,7 +301,7 @@ class DragManager {
       }
     }
     if (nearestInstance != null && nearestInstance.mounted) {
-      if (nearestInstance.widget.children.isNotEmpty && nearestInstance.widget.onItemReorder != null) {
+      if (nearestInstance.widget.children.isNotEmpty) {
         int oldListIndex = -1;
         int oldItemIndex = -1;
         for (int i = 0; i < nearestInstance.widget.children.length; i++) {
@@ -287,9 +312,17 @@ class DragManager {
           }
         }
         if (oldListIndex != -1 && oldItemIndex != -1) {
-          nearestInstance.widget.onItemReorder!(oldItemIndex, oldListIndex, 0, 0);
+          nearestInstance.widget.onItemReorder(oldItemIndex, oldListIndex, 0, 0);
         }
       }
     }
+  }
+
+  void resetScrollState() {
+    _pointerDown = false;
+    _scrolling = false;
+    _isVerticalScrolling = false;
+    _pointerYPosition = null;
+    _pointerXPosition = null;
   }
 }
