@@ -18,17 +18,17 @@ class InnerList {
 
 class _HorizontalExample extends State<HorizontalExample> {
   late List<InnerList> _lists;
-  // Создаем экземпляр DragManager для управления перетаскиванием
-  final DragManager _dragManager = DragManager();
+  // Create DragAndDropListsManager instance for drag management
+  final DragAndDropListsMananger _dragManager = DragAndDropListsMananger();
   ScrollController? _scrollController;
 
   @override
   void initState() {
     super.initState();
 
-    // Инициализируем ScrollController
+    // Initialize ScrollController
     _scrollController = ScrollController();
-    // Передаем контроллер скролла в DragManager
+    // Pass scroll controller to DragAndDropListsManager
     _dragManager.setSharedScrollController(_scrollController!);
 
     _lists = List.generate(9, (outerIndex) {
@@ -41,7 +41,7 @@ class _HorizontalExample extends State<HorizontalExample> {
 
   @override
   void dispose() {
-    // Очищаем ресурсы при уничтожении виджета
+    // Clean up resources when widget is destroyed
     _scrollController?.dispose();
     super.dispose();
   }
@@ -66,7 +66,7 @@ class _HorizontalExample extends State<HorizontalExample> {
           listWidth: MediaQuery.sizeOf(context).width * 0.9,
           listDraggingWidth: 150,
           scrollController: _scrollController,
-          dragManager: _dragManager, // Передаем DragManager для блокировки горизонтального скролла при вертикальном
+          dragManager: _dragManager, // Pass DragAndDropListsManager to block horizontal scroll during vertical scroll
           listDecoration: BoxDecoration(
             color: Colors.grey[200],
             borderRadius: const BorderRadius.all(Radius.circular(7.0)),

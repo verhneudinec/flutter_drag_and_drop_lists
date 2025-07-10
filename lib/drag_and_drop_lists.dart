@@ -84,7 +84,7 @@ typedef ItemTargetOnAccept = void Function(
   DragAndDropItemTarget target,
 );
 
-// class DragManager {
+// class DragAndDropListsMananger {
 //   DragAndDropItem? _draggingItem;
 //   DragAndDropListInterface? _draggingItemParent;
 //   bool _isDragging = false;
@@ -372,7 +372,7 @@ class DragAndDropLists extends StatefulWidget {
 
   final double? cacheExtent;
 
-  final DragManager? dragManager;
+  final DragAndDropListsMananger? dragManager;
 
   DragAndDropLists({
     required this.children,
@@ -469,9 +469,9 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   // Flag to block horizontal scroll during vertical scroll
   bool _isVerticalScrolling = false;
 
-  DragManager? get dragManager => widget.dragManager;
+  DragAndDropListsMananger? get dragManager => widget.dragManager;
 
-  // Getter for accessing _scrollController from DragManager
+  // Getter for accessing _scrollController from DragAndDropListsMananger
   ScrollController? get scrollController => _scrollController;
 
   @override
@@ -483,7 +483,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       _scrollController = ScrollController();
     }
 
-    // Register instance in DragManager and set scroll controller
+    // Register instance in DragAndDropListsMananger and set scroll controller
     dragManager?.registerInstance(this);
     if (_scrollController != null) {
       dragManager?.setSharedScrollController(_scrollController!);
@@ -831,14 +831,14 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       _pointerYPosition = event.position.dy;
       _pointerXPosition = event.position.dx;
 
-      // If DragManager is used, it manages the blocking of
+      // If DragAndDropListsMananger is used, it manages the blocking of
       // horizontal scroll during vertical scrolling itself
       if (dragManager != null) {
-        // DragManager already contains blocking logic
+        // DragAndDropListsMananger already contains blocking logic
         return;
       }
 
-      // Fallback for cases without DragManager
+      // Fallback for cases without DragAndDropListsMananger
       _checkAndBlockHorizontalScrolling();
     }
   }

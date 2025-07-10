@@ -5,7 +5,7 @@ import 'package:drag_and_drop_lists/drag_and_drop_list_interface.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_lists.dart';
 import 'dart:math';
 
-class DragManager {
+class DragAndDropListsMananger {
   DragAndDropItem? _draggingItem;
   DragAndDropListInterface? _draggingItemParent;
   bool _isDragging = false;
