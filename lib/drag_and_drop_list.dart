@@ -199,7 +199,9 @@ class DragAndDropList implements DragAndDropListInterface {
           child: SingleChildScrollView(
             physics: const NeverScrollableScrollPhysics(),
             child: SizedBox(
-              height: parameters.listHeight,
+              height: parameters.listHeight != null && parameters.listPadding != null
+                  ? parameters.listHeight! - (parameters.listPadding!.vertical * 2)
+                  : null,
               child: DragAndDropItemTarget(
                 parent: this,
                 parameters: parameters,
