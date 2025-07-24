@@ -18,7 +18,7 @@ class DragAndDropListsMananger {
   bool _scrolling = false;
   DateTime? _lastScrollTime;
   final _scrollThrottle = const Duration(milliseconds: 1300);
-  final _scrollTriggerZone = 25.0;
+  final _scrollTriggerZone = 65.0;
   final int _duration = 30; // in ms
   final int _scrollAreaSize = 8;
   final double _overDragMin = 5.0;
