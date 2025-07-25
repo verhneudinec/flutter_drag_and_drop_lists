@@ -18,9 +18,9 @@ class DragAndDropListsMananger {
   bool _scrolling = false;
   DateTime? _lastScrollTime;
   final _scrollThrottle = const Duration(milliseconds: 1300);
-  final _scrollTriggerZone = 65.0;
+  final double _verticalScrollTriggerZone = 8.0;
+  final double _horizontalScrollTriggerZone = 65.0;
   final int _duration = 30; // in ms
-  final int _scrollAreaSize = 8;
   final double _overDragMin = 5.0;
   final double _overDragMax = 20.0;
   final double _overDragCoefficient = 3.3;
@@ -132,53 +132,59 @@ class DragAndDropListsMananger {
   }
 
   double? scrollListVertical(DragAndDropListsState activeInstance) {
-    final pointerYPosition = _pointerYPosition;
-    final scrollController = activeInstance.widget.verticalScrollController ?? activeInstance.scrollController;
+  final pointerYPosition = _pointerYPosition;
+  final scrollController = activeInstance.widget.verticalScrollController ?? activeInstance.scrollController;
 
-    if (scrollController == null || pointerYPosition == null) return null;
+  if (scrollController == null || pointerYPosition == null) return null;
 
-    final position = scrollController.position;
-    final viewportHeight = position.viewportDimension;
+  final position = scrollController.position;
+  final viewportHeight = position.viewportDimension;
 
-    const top = 80.0;
-    final bottom = viewportHeight;
+  // Dynamic calculation of scroll zones based on viewport height
+  // For portrait orientation: 10-15% of screen height
+  // For landscape orientation: 15-25% of screen height (larger, as height is smaller)
+  final isLandscape = viewportHeight < 600; // Approximate threshold for determining landscape orientation
+  final topPercentage = isLandscape ? 0.30 : 0.12; // 30% for landscape, 12% for portrait
+  final bottomPercentage = isLandscape ? 1.25 : 0.90; // 125% for landscape, 90% for portrait
+  final top = viewportHeight * topPercentage;
+  final bottom = viewportHeight * bottomPercentage;
 
-    double? newOffset;
+  double? newOffset;
 
-    // Reset vertical scrolling flag by default
-    _isVerticalScrolling = false;
+  // Reset vertical scrolling flag by default
+  _isVerticalScrolling = false;
 
-    if (pointerYPosition < (top + _scrollAreaSize)) {
-      final overDrag = max((top + _scrollAreaSize) - pointerYPosition, _overDragMax);
-      newOffset = position.pixels - overDrag / _overDragCoefficientUp; // Use faster coefficient for upward scroll
-    } else if (pointerYPosition > (bottom - _scrollAreaSize)) {
-      final overDrag = max(pointerYPosition - (bottom - _scrollAreaSize), _overDragMax);
-      newOffset = position.pixels + overDrag / _overDragCoefficient; // Use normal coefficient for downward scroll
-    }
-
-    if (newOffset != null && newOffset > 0) {
-      _lastScrollTime = DateTime.now().add(Duration(milliseconds: _duration));
-      final isMoreThanMax = newOffset > position.maxScrollExtent;
-      newOffset = newOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
-
-      _isVerticalScrolling = true;
-
-      // Start scroll animation and continue scrolling while finger is on screen
-      _scrolling = true;
-
-      final offset = min(newOffset, scrollController.position.maxScrollExtent);
-
-      scrollController.animateTo(offset,
-        duration: Duration(milliseconds: _duration), curve: Curves.linear).then((_) {
-        _scrolling = false;
-        if (_pointerDown && !isMoreThanMax) scrollList();
-      }).then((_) {
-        _isVerticalScrolling = false;
-      });
-    }
-
-    return newOffset;
+  if (pointerYPosition < (top + _verticalScrollTriggerZone)) {
+    final overDrag = max((top + _verticalScrollTriggerZone) - pointerYPosition, _overDragMax);
+    newOffset = position.pixels - overDrag / _overDragCoefficientUp; // Use faster coefficient for upward scroll
+  } else if (pointerYPosition > (bottom - _verticalScrollTriggerZone)) {
+    final overDrag = max(pointerYPosition - (bottom - _verticalScrollTriggerZone), _overDragMax);
+    newOffset = position.pixels + overDrag / _overDragCoefficient; // Use normal coefficient for downward scroll
   }
+
+  if (newOffset != null && newOffset > 0) {
+    _lastScrollTime = DateTime.now().add(Duration(milliseconds: _duration));
+    final isMoreThanMax = newOffset > position.maxScrollExtent;
+    newOffset = newOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
+
+    _isVerticalScrolling = true;
+
+    // Start scroll animation and continue scrolling while finger is on screen
+    _scrolling = true;
+
+    final offset = min(newOffset, scrollController.position.maxScrollExtent);
+
+    scrollController.animateTo(offset,
+      duration: Duration(milliseconds: _duration), curve: Curves.linear).then((_) {
+      _scrolling = false;
+      if (_pointerDown && !isMoreThanMax) scrollList();
+    }).then((_) {
+      _isVerticalScrolling = false;
+    });
+  }
+
+  return newOffset;
+}
 
 
 
@@ -206,10 +212,10 @@ class DragAndDropListsMananger {
 
     double? targetOffset;
 
-    if (pointerXPosition < (left + _scrollTriggerZone)) {
+    if (pointerXPosition < (left + _horizontalScrollTriggerZone)) {
       // Scroll left
       targetOffset = position.pixels - listWidth;
-    } else if (pointerXPosition > (right - _scrollTriggerZone)) {
+    } else if (pointerXPosition > (right - _horizontalScrollTriggerZone)) {
       // Scroll right
       targetOffset = position.pixels + listWidth;
     }
@@ -245,21 +251,21 @@ class DragAndDropListsMananger {
     var pointerXPosition = _pointerXPosition;
     var scrollController = activeInstance.scrollController;
     if (scrollController != null && pointerXPosition != null) {
-      if (pointerXPosition < (left + _scrollAreaSize) &&
+      if (pointerXPosition < (left + _horizontalScrollTriggerZone) &&
           scrollController.position.pixels >
               scrollController.position.minScrollExtent) {
         // scrolling toward minScrollExtent
         final overDrag = min(
-            (left + _scrollAreaSize) - pointerXPosition + _overDragMin,
+            (left + _horizontalScrollTriggerZone) - pointerXPosition + _overDragMin,
             _overDragMax) + additionalScrollAmount;
         newOffset = max(scrollController.position.minScrollExtent,
             scrollController.position.pixels - overDrag / _overDragCoefficient);
-      } else if (pointerXPosition > (right - _scrollAreaSize) &&
+      } else if (pointerXPosition > (right - _horizontalScrollTriggerZone) &&
           scrollController.position.pixels <
               scrollController.position.maxScrollExtent) {
         // scrolling toward maxScrollExtent
         final overDrag = min(
-            pointerXPosition - (right - _scrollAreaSize) + _overDragMin,
+            pointerXPosition - (right - _horizontalScrollTriggerZone) + _overDragMin,
             _overDragMax) + additionalScrollAmount;
 
         newOffset = min(scrollController.position.maxScrollExtent,
