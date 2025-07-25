@@ -64,7 +64,8 @@ class _DragAndDropItemWrapper extends State<DragAndDropItemWrapper>
             child: Draggable<DragAndDropItem>(
               data: widget.child,
               axis: widget.parameters!.axis == Axis.vertical &&
-                      widget.parameters!.constrainDraggingAxis
+                      widget.parameters!.constrainDraggingAxis && 
+                      !widget.parameters!.enableAnyDragDirection
                   ? Axis.vertical
                   : null,
               feedback: Transform.translate(
@@ -116,7 +117,8 @@ class _DragAndDropItemWrapper extends State<DragAndDropItemWrapper>
           child: LongPressDraggable<DragAndDropItem>(
             data: widget.child,
             axis: widget.parameters!.axis == Axis.vertical &&
-                    widget.parameters!.constrainDraggingAxis
+                    widget.parameters!.constrainDraggingAxis && 
+                    !widget.parameters!.enableAnyDragDirection
                 ? Axis.vertical
                 : null,
             feedback: SizedBox(
@@ -146,7 +148,8 @@ class _DragAndDropItemWrapper extends State<DragAndDropItemWrapper>
           child: Draggable<DragAndDropItem>(
             data: widget.child,
             axis: widget.parameters!.axis == Axis.vertical &&
-                    widget.parameters!.constrainDraggingAxis
+                    widget.parameters!.constrainDraggingAxis && 
+                    !widget.parameters!.enableAnyDragDirection
                 ? Axis.vertical
                 : null,
             feedback: SizedBox(

@@ -12,8 +12,6 @@
 /// be locked individually.
 library drag_and_drop_lists;
 
-import 'dart:math';
-
 import 'package:drag_and_drop_lists/drag_and_drop_builder_parameters.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_item.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_item_target.dart';
@@ -21,6 +19,7 @@ import 'package:drag_and_drop_lists/drag_and_drop_list_interface.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_list_target.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_list_wrapper.dart';
 import 'package:drag_and_drop_lists/drag_handle.dart';
+import 'package:drag_and_drop_lists/drag_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -34,6 +33,7 @@ export 'package:drag_and_drop_lists/drag_and_drop_list_expansion.dart';
 export 'package:drag_and_drop_lists/drag_and_drop_list_target.dart';
 export 'package:drag_and_drop_lists/drag_and_drop_list_wrapper.dart';
 export 'package:drag_and_drop_lists/drag_handle.dart';
+export 'package:drag_and_drop_lists/drag_manager.dart';
 
 typedef OnItemReorder = void Function(
   int oldItemIndex,
@@ -83,6 +83,78 @@ typedef ItemTargetOnAccept = void Function(
   DragAndDropListInterface parentList,
   DragAndDropItemTarget target,
 );
+
+// class DragAndDropListsMananger {
+//   DragAndDropItem? _draggingItem;
+//   DragAndDropListInterface? _draggingItemParent;
+//   bool _isDragging = false;
+//   List<DragAndDropListsState> _activeInstances = [];
+//   ScrollController? _sharedScrollController;
+
+//   void registerInstance(DragAndDropListsState instance) {
+//     if (!_activeInstances.contains(instance)) {
+//       _activeInstances.add(instance);
+//     }
+//   }
+
+//   void unregisterInstance(DragAndDropListsState instance) {
+//     _activeInstances.remove(instance);
+//   }
+
+//   void setSharedScrollController(ScrollController controller) {
+//     _sharedScrollController = controller;
+//   }
+
+//   void startDragging(DragAndDropItem item, DragAndDropListInterface? parent) {
+//     _draggingItem = item;
+//     _draggingItemParent = parent;
+//     _isDragging = true;
+//   }
+
+//   void stopDragging() {
+//     _draggingItem = null;
+//     _draggingItemParent = null;
+//     _isDragging = false;
+//   }
+
+//   bool get isDragging => _isDragging;
+//   DragAndDropItem? get draggingItem => _draggingItem;
+//   DragAndDropListInterface? get draggingItemParent => _draggingItemParent;
+//   ScrollController? get sharedScrollController => _sharedScrollController;
+
+//   // Метод для принудительного перемещения элемента в ближайший видимый список
+//   void forceMoveToVisibleList() {
+//     if (!_isDragging || _draggingItem == null) return;
+
+//     // Найти ближайший активный экземпляр
+//     DragAndDropListsState? nearestInstance;
+//     for (var instance in _activeInstances) {
+//       if (instance.mounted) {
+//         nearestInstance = instance;
+//         break;
+//       }
+//     }
+
+//     if (nearestInstance != null && nearestInstance.mounted) {
+//       if (nearestInstance.widget.children.isNotEmpty) {
+//         final targetList = nearestInstance.widget.children.first;
+//         if (nearestInstance.widget.onItemReorder != null) {
+//           int oldListIndex = -1;
+//           int oldItemIndex = -1;
+//           for (int i = 0; i < nearestInstance.widget.children.length; i++) {
+//             if (nearestInstance.widget.children[i] == _draggingItemParent) {
+//               oldListIndex = i;
+//               oldItemIndex = _draggingItemParent?.children?.indexWhere((e) => e == _draggingItem) ?? -1;
+//               break;
+//             }
+//           }
+//           if (oldListIndex != -1 && oldItemIndex != -1) {
+//             nearestInstance.widget.onItemReorder!(oldItemIndex, oldListIndex, 0, 0);
+//           }
+//         }
+//       }
+//     }
+// }
 
 class DragAndDropLists extends StatefulWidget {
   /// The child lists to be displayed.
@@ -227,6 +299,8 @@ class DragAndDropLists extends StatefulWidget {
   /// [axis] is set to Axis.horizontal.
   final double listWidth;
 
+  final double? listHeight;
+
   /// The height of the target for the last item in a list. This should be large
   /// enough to easily drag an item into the last position of a list.
   final double lastItemTargetHeight;
@@ -279,12 +353,26 @@ class DragAndDropLists extends StatefulWidget {
   /// the vertical axis. By default this is set to true. This may be useful to
   /// disable when setting customDragTargets
   final bool constrainDraggingAxis;
-  
+
   /// If you put a widget before DragAndDropLists there's an unexpected padding
   /// before the list renders. This is the default behaviour for ListView which
   /// is used internally. To remove the padding, set this field to true
   /// https://github.com/flutter/flutter/issues/14842#issuecomment-371344881
   final bool removeTopPadding;
+
+  final double? horizontalPadding;
+
+  final bool useSnapScrollPhysics;
+
+  final bool enableAnyDragDirection;
+
+  final void Function(double?, double?)? onMoveUpdate;
+
+  final ScrollController? verticalScrollController;
+
+  final double? cacheExtent;
+
+  final DragAndDropListsMananger? dragManager;
 
   DragAndDropLists({
     required this.children,
@@ -323,6 +411,7 @@ class DragAndDropLists extends StatefulWidget {
     this.listPadding,
     this.contentsWhenEmpty,
     this.listWidth = double.infinity,
+    this.listHeight,
     this.lastItemTargetHeight = 20,
     this.addLastItemTargetHeightToTop = false,
     this.lastListTargetSize = 110,
@@ -336,6 +425,13 @@ class DragAndDropLists extends StatefulWidget {
     this.itemDragHandle,
     this.constrainDraggingAxis = true,
     this.removeTopPadding = false,
+    this.horizontalPadding,
+    this.useSnapScrollPhysics = false,
+    this.enableAnyDragDirection = false,
+    this.onMoveUpdate,
+    this.verticalScrollController,
+    this.cacheExtent,
+    this.dragManager,
     super.key,
   }) {
     if (listGhost == null &&
@@ -368,18 +464,52 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   bool _pointerDown = false;
   double? _pointerYPosition;
   double? _pointerXPosition;
-  bool _scrolling = false;
   final PageStorageBucket _pageStorageBucket = PageStorageBucket();
+
+  // Flag to block horizontal scroll during vertical scroll
+  bool _isVerticalScrolling = false;
+
+  DragAndDropListsMananger? get dragManager => widget.dragManager;
+
+  // Getter for accessing _scrollController from DragAndDropListsMananger
+  ScrollController? get scrollController => _scrollController;
 
   @override
   void initState() {
+    super.initState();
     if (widget.scrollController != null) {
       _scrollController = widget.scrollController;
     } else {
       _scrollController = ScrollController();
     }
 
-    super.initState();
+    // Register instance in DragAndDropListsMananger and set scroll controller
+    dragManager?.registerInstance(this);
+    if (_scrollController != null) {
+      dragManager?.setSharedScrollController(_scrollController!);
+    }
+  }
+
+  @override
+  void dispose() {
+    dragManager?.unregisterInstance(this);
+    super.dispose();
+  }
+
+  void _onItemDraggingChanged(DragAndDropItem item, bool dragging) {
+    if (dragging) {
+      DragAndDropListInterface? parent;
+      for (final list in widget.children) {
+        if (list.children?.contains(item) == true) {
+          parent = list;
+          break;
+        }
+      }
+      dragManager?.startDragging(item, parent);
+    } else {
+      dragManager?.stopDragging();
+    }
+    widget.onItemDraggingChanged?.call(item, dragging);
   }
 
   @override
@@ -393,15 +523,16 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       dragOnLongPress: widget.listDragOnLongPress,
       listPadding: widget.listPadding,
       itemSizeAnimationDuration: widget.itemSizeAnimationDurationMilliseconds,
-      onPointerDown: _onPointerDown,
-      onPointerUp: _onPointerUp,
-      onPointerMove: _onPointerMove,
+      onPointerDown: dragManager?.onPointerDown ?? _onPointerDown,
+      onPointerUp: dragManager?.onPointerUp ?? _onPointerUp,
+      onPointerMove: dragManager?.onPointerMove ?? _onPointerMove,
       onItemReordered: _internalOnItemReorder,
       onItemDropOnLastTarget: _internalOnItemDropOnLastTarget,
       onListReordered: _internalOnListReorder,
-      onItemDraggingChanged: widget.onItemDraggingChanged,
+      onItemDraggingChanged: _onItemDraggingChanged,
       onListDraggingChanged: widget.onListDraggingChanged,
       listOnWillAccept: widget.listOnWillAccept,
+      listOnAccept: widget.listOnAccept,
       listTargetOnWillAccept: widget.listTargetOnWillAccept,
       itemOnWillAccept: widget.itemOnWillAccept,
       itemTargetOnWillAccept: widget.itemTargetOnWillAccept,
@@ -415,12 +546,14 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       listDecorationWhileDragging: widget.listDecorationWhileDragging,
       listInnerDecoration: widget.listInnerDecoration,
       listWidth: widget.listWidth,
+      listHeight: widget.listHeight,
       lastItemTargetHeight: widget.lastItemTargetHeight,
       addLastItemTargetHeightToTop: widget.addLastItemTargetHeightToTop,
       listDragHandle: widget.listDragHandle,
       itemDragHandle: widget.itemDragHandle,
       constrainDraggingAxis: widget.constrainDraggingAxis,
       disableScrolling: widget.disableScrolling,
+      enableAnyDragDirection: widget.enableAnyDragDirection,
     );
 
     DragAndDropListTarget dragAndDropListTarget = DragAndDropListTarget(
@@ -495,9 +628,22 @@ class DragAndDropListsState extends State<DragAndDropLists> {
 
   Widget _buildListView(DragAndDropBuilderParameters parameters,
       DragAndDropListTarget dragAndDropListTarget) {
-    Widget listView = ListView(
+    final screenWidth = MediaQuery.of(context).size.width;
+    final double viewportFraction = widget.listWidth.isFinite
+        ? widget.listWidth / screenWidth
+        : 1.0;
+
+    final horizontalPadding = widget.horizontalPadding ?? (screenWidth - widget.listWidth) / 2;
+
+    final listView = ListView(
       scrollDirection: widget.axis,
       controller: _scrollController,
+      cacheExtent: widget.cacheExtent,
+      physics: widget.useSnapScrollPhysics
+          ? CustomPageScrollPhysics(kColumnViewportFraction: viewportFraction)
+          : null,
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+      clipBehavior: Clip.none,
       children: _buildOuterList(dragAndDropListTarget, parameters),
     );
 
@@ -681,168 +827,274 @@ class DragAndDropListsState extends State<DragAndDropLists> {
   }
 
   _onPointerMove(PointerMoveEvent event) {
-    if (_pointerDown) {
+    if (_pointerDown && mounted) {
       _pointerYPosition = event.position.dy;
       _pointerXPosition = event.position.dx;
 
-      _scrollList();
+      // If DragAndDropListsMananger is used, it manages the blocking of
+      // horizontal scroll during vertical scrolling itself
+      if (dragManager != null) {
+        // DragAndDropListsMananger already contains blocking logic
+        return;
+      }
+
+      // Fallback for cases without DragAndDropListsMananger
+      _checkAndBlockHorizontalScrolling();
     }
   }
 
   _onPointerDown(PointerDownEvent event) {
-    _pointerDown = true;
-    _pointerYPosition = event.position.dy;
-    _pointerXPosition = event.position.dx;
+    if (mounted) {
+      _pointerDown = true;
+      _pointerYPosition = event.position.dy;
+      _pointerXPosition = event.position.dx;
+    }
   }
 
   _onPointerUp(PointerUpEvent event) {
-    _pointerDown = false;
-  }
-
-  final int _duration = 30; // in ms
-  final int _scrollAreaSize = 20;
-  final double _overDragMin = 5.0;
-  final double _overDragMax = 20.0;
-  final double _overDragCoefficient = 3.3;
-
-  _scrollList() async {
-    if (!widget.disableScrolling &&
-        !_scrolling &&
-        _pointerDown &&
-        _pointerYPosition != null &&
-        _pointerXPosition != null) {
-      double? newOffset;
-
-      var rb = context.findRenderObject()!;
-      late Size size;
-      if (rb is RenderBox) {
-        size = rb.size;
-      } else if (rb is RenderSliver) {
-        size = rb.paintBounds.size;
-      }
-
-      var topLeftOffset = localToGlobal(rb, Offset.zero);
-      var bottomRightOffset = localToGlobal(rb, size.bottomRight(Offset.zero));
-
-      if (widget.axis == Axis.vertical) {
-        newOffset = _scrollListVertical(topLeftOffset, bottomRightOffset);
-      } else {
-        var directionality = Directionality.of(context);
-        if (directionality == TextDirection.ltr) {
-          newOffset =
-              _scrollListHorizontalLtr(topLeftOffset, bottomRightOffset);
-        } else {
-          newOffset =
-              _scrollListHorizontalRtl(topLeftOffset, bottomRightOffset);
-        }
-      }
-
-      if (newOffset != null) {
-        _scrolling = true;
-        await _scrollController!.animateTo(newOffset,
-            duration: Duration(milliseconds: _duration), curve: Curves.linear);
-        _scrolling = false;
-        if (_pointerDown) _scrollList();
-      }
+    if (mounted) {
+      _pointerDown = false;
+      // Reset vertical scrolling flag when pointer is released
+      _isVerticalScrolling = false;
     }
   }
 
-  double? _scrollListVertical(Offset topLeftOffset, Offset bottomRightOffset) {
-    double top = topLeftOffset.dy;
-    double bottom = bottomRightOffset.dy;
-    double? newOffset;
+  /// Checks if vertical scrolling is occurring and blocks horizontal scroll if necessary
+  void _checkAndBlockHorizontalScrolling() {
+    if (_pointerYPosition == null || _pointerXPosition == null) return;
 
-    var pointerYPosition = _pointerYPosition;
-    var scrollController = _scrollController;
-    if (scrollController != null && pointerYPosition != null) {
-      if (pointerYPosition < (top + _scrollAreaSize) &&
-          scrollController.position.pixels >
-              scrollController.position.minScrollExtent) {
-        final overDrag =
-            max((top + _scrollAreaSize) - pointerYPosition, _overDragMax);
-        newOffset = max(scrollController.position.minScrollExtent,
-            scrollController.position.pixels - overDrag / _overDragCoefficient);
-      } else if (pointerYPosition > (bottom - _scrollAreaSize) &&
-          scrollController.position.pixels <
-              scrollController.position.maxScrollExtent) {
-        final overDrag = max<double>(
-            pointerYPosition - (bottom - _scrollAreaSize), _overDragMax);
-        newOffset = min(scrollController.position.maxScrollExtent,
-            scrollController.position.pixels + overDrag / _overDragCoefficient);
-      }
-    }
+    final scrollController = widget.verticalScrollController ?? _scrollController;
+    if (scrollController == null) return;
 
-    return newOffset;
+    final position = scrollController.position;
+    const scrollAreaSize = 60.0;
+    const topBoundary = 80.0;
+    final bottomBoundary = position.viewportDimension;
+
+    // Check if pointer is in vertical scroll zone
+    bool inVerticalScrollZone = (_pointerYPosition! < (topBoundary + scrollAreaSize)) ||
+                               (_pointerYPosition! > (bottomBoundary - scrollAreaSize));
+
+    // Set flag to block horizontal scroll
+    _isVerticalScrolling = inVerticalScrollZone;
   }
 
-  double? _scrollListHorizontalLtr(
-      Offset topLeftOffset, Offset bottomRightOffset) {
-    double left = topLeftOffset.dx;
-    double right = bottomRightOffset.dx;
-    double? newOffset;
+  /// Getter to check vertical scrolling state
+  bool get isVerticalScrolling => _isVerticalScrolling;
 
-    var pointerXPosition = _pointerXPosition;
-    var scrollController = _scrollController;
-    if (scrollController != null && pointerXPosition != null) {
-      if (pointerXPosition < (left + _scrollAreaSize) &&
-          scrollController.position.pixels >
-              scrollController.position.minScrollExtent) {
-        // scrolling toward minScrollExtent
-        final overDrag = min(
-            (left + _scrollAreaSize) - pointerXPosition + _overDragMin,
-            _overDragMax);
-        newOffset = max(scrollController.position.minScrollExtent,
-            scrollController.position.pixels - overDrag / _overDragCoefficient);
-      } else if (pointerXPosition > (right - _scrollAreaSize) &&
-          scrollController.position.pixels <
-              scrollController.position.maxScrollExtent) {
-        // scrolling toward maxScrollExtent
-        final overDrag = min(
-            pointerXPosition - (right - _scrollAreaSize) + _overDragMin,
-            _overDragMax);
-        newOffset = min(scrollController.position.maxScrollExtent,
-            scrollController.position.pixels + overDrag / _overDragCoefficient);
-      }
-    }
+  // double? _scrollListVertical() {
+  //   final pointerYPosition = _pointerYPosition;
+  //   final scrollController = widget.verticalScrollController ?? _scrollController;
 
-    return newOffset;
-  }
+  //   if (scrollController == null || pointerYPosition == null) return null;
 
-  double? _scrollListHorizontalRtl(
-      Offset topLeftOffset, Offset bottomRightOffset) {
-    double left = topLeftOffset.dx;
-    double right = bottomRightOffset.dx;
-    double? newOffset;
+  //   final position = scrollController.position;
+  //   final viewportHeight = position.viewportDimension;
 
-    var pointerXPosition = _pointerXPosition;
-    var scrollController = _scrollController;
-    if (scrollController != null && pointerXPosition != null) {
-      if (pointerXPosition < (left + _scrollAreaSize) &&
-          scrollController.position.pixels <
-              scrollController.position.maxScrollExtent) {
-        // scrolling toward maxScrollExtent
-        final overDrag = min(
-            (left + _scrollAreaSize) - pointerXPosition + _overDragMin,
-            _overDragMax);
-        newOffset = min(scrollController.position.maxScrollExtent,
-            scrollController.position.pixels + overDrag / _overDragCoefficient);
-      } else if (pointerXPosition > (right - _scrollAreaSize) &&
-          scrollController.position.pixels >
-              scrollController.position.minScrollExtent) {
-        // scrolling toward minScrollExtent
-        final overDrag = min(
-            pointerXPosition - (right - _scrollAreaSize) + _overDragMin,
-            _overDragMax);
-        newOffset = max(scrollController.position.minScrollExtent,
-            scrollController.position.pixels - overDrag / _overDragCoefficient);
-      }
-    }
+  //   const top = 80.0;
+  //   final bottom = viewportHeight;
 
-    return newOffset;
-  }
+  //   double? newOffset;
+
+  //   if (pointerYPosition < (top + _scrollAreaSize)) {
+  //     final overDrag = max((top + _scrollAreaSize) - pointerYPosition, _overDragMax);
+  //     newOffset = position.pixels - overDrag / _overDragCoefficient;
+  //   } else if (pointerYPosition > (bottom - _scrollAreaSize)) {
+  //     final overDrag = max(pointerYPosition - (bottom - _scrollAreaSize), _overDragMax);
+  //     newOffset = position.pixels + overDrag / _overDragCoefficient;
+  //   }
+
+  //   if (newOffset != null && newOffset > 0) {
+  //     final isMoreThanMax = newOffset > position.maxScrollExtent;
+  //     newOffset = newOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
+  //     // Запускаем анимацию скролла и продолжаем скроллить, пока палец на экране
+  //     _scrolling = true;
+
+  //     final offset = min(newOffset, scrollController.position.maxScrollExtent);
+
+  //     scrollController.animateTo(offset,
+  //       duration: Duration(milliseconds: _duration), curve: Curves.linear).then((_) {
+  //       _scrolling = false;
+  //       if (_pointerDown && !isMoreThanMax) _scrollList();
+  //     });
+  //   }
+
+  //   return newOffset;
+  // }
+
+
+
+  // double _scrollListHorizontalWithSnapPhysics(Offset topLeftOffset, Offset bottomRightOffset) {
+  //   final pointerXPosition = _pointerXPosition;
+  //   final scrollController = _scrollController;
+
+  //   if (scrollController == null || pointerXPosition == null || _scrolling) return 0.0;
+
+  //   final position = scrollController.position;
+  //   final double listWidth = widget.listWidth;
+  //   double left = topLeftOffset.dx;
+  //   double right = bottomRightOffset.dx;
+
+  //   // Check if enough time has passed since last scroll
+  //   final now = DateTime.now();
+  //   if (_lastScrollTime != null) {
+  //     if (now.difference(_lastScrollTime!) < _scrollThrottle) {
+  //       return position.pixels;
+  //     }
+  //   }
+
+  //   double? targetOffset;
+
+  //   if (pointerXPosition < (left + _scrollTriggerZone)) {
+  //     // Scroll left
+  //     targetOffset = position.pixels - listWidth;
+  //   } else if (pointerXPosition > (right - _scrollTriggerZone)) {
+  //     // Scroll right
+  //     targetOffset = position.pixels + listWidth;
+  //   }
+
+  //   if (!_scrolling && _pointerDown && targetOffset != null) {
+  //       targetOffset = targetOffset.clamp(position.minScrollExtent, position.maxScrollExtent);
+
+  //       _scrolling = true;
+  //       _lastScrollTime = now;
+
+  //       scrollController.animateTo(
+  //         targetOffset,
+  //         duration: const Duration(milliseconds: 350),
+  //         curve: Curves.linear
+  //       ).then((_) {
+  //         _scrolling = false;
+  //         if (_pointerDown) _scrollList();
+  //       });
+  //     }
+
+  //   return position.pixels;
+  // }
+
+  // double? _scrollListHorizontalLtr(
+  //     Offset topLeftOffset, Offset bottomRightOffset) {
+  //   double left = topLeftOffset.dx;
+  //   double right = bottomRightOffset.dx;
+  //   double? newOffset;
+
+  //   var pointerXPosition = _pointerXPosition;
+  //   var scrollController = _scrollController;
+  //   if (scrollController != null && pointerXPosition != null) {
+  //     if (pointerXPosition < (left + _scrollAreaSize) &&
+  //         scrollController.position.pixels >
+  //             scrollController.position.minScrollExtent) {
+  //       // scrolling toward minScrollExtent
+  //       final overDrag = min(
+  //           (left + _scrollAreaSize) - pointerXPosition + _overDragMin,
+  //           _overDragMax);
+  //       newOffset = max(scrollController.position.minScrollExtent,
+  //           scrollController.position.pixels - overDrag / _overDragCoefficient);
+  //     } else if (pointerXPosition > (right - _scrollAreaSize) &&
+  //         scrollController.position.pixels <
+  //             scrollController.position.maxScrollExtent) {
+  //       // scrolling toward maxScrollExtent
+  //       final overDrag = min(
+  //           pointerXPosition - (right - _scrollAreaSize) + _overDragMin,
+  //           _overDragMax);
+  //       newOffset = min(scrollController.position.maxScrollExtent,
+  //           scrollController.position.pixels + overDrag / _overDragCoefficient);
+  //     }
+  //   }
+
+  //   return newOffset;
+  // }
+
+  // double? _scrollListHorizontalRtl(
+  //     Offset topLeftOffset, Offset bottomRightOffset) {
+  //   double left = topLeftOffset.dx;
+  //   double right = bottomRightOffset.dx;
+  //   double? newOffset;
+
+  //   var pointerXPosition = _pointerXPosition;
+  //   var scrollController = _scrollController;
+  //   if (scrollController != null && pointerXPosition != null) {
+  //     if (pointerXPosition < (left + _scrollAreaSize) &&
+  //         scrollController.position.pixels <
+  //             scrollController.position.maxScrollExtent) {
+  //       // scrolling toward maxScrollExtent
+  //       final overDrag = min(
+  //           (left + _scrollAreaSize) - pointerXPosition + _overDragMin,
+  //           _overDragMax);
+  //       newOffset = min(scrollController.position.maxScrollExtent,
+  //           scrollController.position.pixels + overDrag / _overDragCoefficient);
+  //     } else if (pointerXPosition > (right - _scrollAreaSize) &&
+  //         scrollController.position.pixels >
+  //             scrollController.position.minScrollExtent) {
+  //       // scrolling toward minScrollExtent
+  //       final overDrag = min(
+  //           pointerXPosition - (right - _scrollAreaSize) + _overDragMin,
+  //           _overDragMax);
+  //       newOffset = max(scrollController.position.minScrollExtent,
+  //           scrollController.position.pixels - overDrag / _overDragCoefficient);
+  //     }
+  //   }
+
+  //   return newOffset;
+  // }
 
   static Offset localToGlobal(RenderObject object, Offset point,
       {RenderObject? ancestor}) {
     return MatrixUtils.transformPoint(object.getTransformTo(ancestor), point);
   }
+}
+
+class CustomPageScrollPhysics extends ScrollPhysics {
+  final double kColumnViewportFraction;
+  const CustomPageScrollPhysics({super.parent, this.kColumnViewportFraction = 1.0 });
+
+  @override
+  CustomPageScrollPhysics applyTo(ScrollPhysics? ancestor) {
+    return CustomPageScrollPhysics(parent: buildParent(ancestor), kColumnViewportFraction: kColumnViewportFraction);
+  }
+
+  double _getPage(ScrollMetrics position) {
+    return position.pixels / (position.viewportDimension * kColumnViewportFraction);
+  }
+
+  double _getPixels(double page, ScrollMetrics position) {
+    return page * (position.viewportDimension * kColumnViewportFraction);
+  }
+
+  double _getTargetPixels(ScrollMetrics position, Tolerance tolerance, double velocity) {
+    double page = _getPage(position);
+
+    if (velocity < -tolerance.velocity) {
+      page -= 0.5;
+    } else if (velocity > tolerance.velocity) {
+      page += 0.5;
+    }
+
+    return _getPixels(page.roundToDouble(), position);
+  }
+
+  @override
+  Simulation? createBallisticSimulation(ScrollMetrics position, double velocity) {
+    if ((velocity <= 0.0 && position.pixels <= position.minScrollExtent) ||
+        (velocity >= 0.0 && position.pixels >= position.maxScrollExtent)) {
+      return super.createBallisticSimulation(position, velocity);
+    }
+
+    final Tolerance tolerance = toleranceFor(position);
+    final double target = _getTargetPixels(position, tolerance, velocity);
+
+    if (target != position.pixels) {
+      return ScrollSpringSimulation(
+        spring,
+        position.pixels,
+        target,
+        velocity,
+        tolerance: tolerance,
+      );
+    }
+    return null;
+  }
+
+  @override
+  bool get allowImplicitScrolling => false;
 }
