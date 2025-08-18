@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_item.dart';
@@ -140,6 +142,9 @@ class DragAndDropListsMananger {
     final position = scrollController.position;
     final viewportHeight = position.viewportDimension;
 
+    final mediaQuery = MediaQuery.of(activeInstance.context);
+    final bottomSafeArea = mediaQuery.padding.bottom;
+
     // Dynamic calculation of scroll zones based on viewport height
     // For portrait orientation: 10-15% of screen height
     // For landscape orientation: 15-25% of screen height (larger, as height is smaller)
@@ -147,16 +152,17 @@ class DragAndDropListsMananger {
     final topPercentage = isLandscape ? 0.30 : 0.12; // 30% for landscape, 12% for portrait
 
     // Detect device type: tablet vs mobile based on screen diagonal
-    final screenWidth = MediaQuery.of(activeInstance.context).size.width;
-    final screenHeight = MediaQuery.of(activeInstance.context).size.height;
+    final screenWidth = mediaQuery.size.width;
+    final screenHeight = mediaQuery.size.height;
     final diagonal = sqrt(screenWidth * screenWidth + screenHeight * screenHeight);
     final isTablet = diagonal > 1100; // Approximate threshold for tablet detection
 
+    // Adjust bottom boundary to account for iOS safe area
     final bottomPercentage = isLandscape && !isTablet
       ? 1.60  // 160% for mobile in landscape
-      : 1.05; // 90% for portrait
+      : Platform.isIOS ? 0.99 : 0.105; // 99% for portrait iOS, 105% for portrait Android
     final top = viewportHeight * topPercentage;
-    final bottom = viewportHeight * bottomPercentage;
+    final bottom = (viewportHeight * bottomPercentage) - bottomSafeArea;
 
     double? newOffset;
 
