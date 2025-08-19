@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_item.dart';
@@ -158,7 +160,7 @@ class DragAndDropListsMananger {
     // Adjust bottom boundary to account for iOS safe area
     final bottomPercentage = isLandscape && !isTablet
       ? 1.60  // 160% for mobile in landscape
-      : 1.05; // 105% for portrait
+      : Platform.isIOS ? 0.99 : 0.105; // 99% for portrait iOS, 105% for portrait Android
     final top = viewportHeight * topPercentage;
     final bottom = (viewportHeight * bottomPercentage) - bottomSafeArea;
 
