@@ -633,7 +633,16 @@ class DragAndDropListsState extends State<DragAndDropLists> {
         ? widget.listWidth / screenWidth
         : 1.0;
 
-    final horizontalPadding = widget.horizontalPadding ?? (screenWidth - widget.listWidth) / 2;
+    final defaultPadding = (screenWidth - widget.listWidth) / 2;
+    late EdgeInsets padding;
+
+    if (widget.horizontalPadding != null) {
+      padding = EdgeInsets.symmetric(horizontal: widget.horizontalPadding!);
+    } else if (widget.useSnapScrollPhysics) {
+      padding = EdgeInsets.only(left: defaultPadding);
+    } else {
+      padding = EdgeInsets.symmetric(horizontal: defaultPadding);
+    }
 
     final listView = ListView(
       scrollDirection: widget.axis,
@@ -642,7 +651,7 @@ class DragAndDropListsState extends State<DragAndDropLists> {
       physics: widget.useSnapScrollPhysics
           ? CustomPageScrollPhysics(kColumnViewportFraction: viewportFraction)
           : null,
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
+      padding: padding,
       clipBehavior: Clip.none,
       children: _buildOuterList(dragAndDropListTarget, parameters),
     );
