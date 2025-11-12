@@ -160,7 +160,8 @@ class DragAndDropListsMananger {
     // Adjust bottom boundary to account for iOS safe area
     final bottomPercentage = isLandscape && !isTablet
       ? 1.60  // 160% for mobile in landscape
-      : Platform.isIOS ? 0.99 : 0.105; // 99% for portrait iOS, 105% for portrait Android
+      : (Platform.isIOS ? 0.96 : 1.01); // 96% for portrait iOS, 101% for portrait Android
+
     final top = viewportHeight * topPercentage;
     final bottom = (viewportHeight * bottomPercentage) - bottomSafeArea;
 
