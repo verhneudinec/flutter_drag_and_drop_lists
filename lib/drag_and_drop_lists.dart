@@ -372,6 +372,21 @@ class DragAndDropLists extends StatefulWidget {
 
   final double? cacheExtent;
 
+  /// Percentage of the screen height that defines the upper auto-scroll zone.
+  /// If `null`, a default value is used:
+  /// `0.30` for landscape orientation, `0.15` for portrait.
+  /// The value is multiplied by the viewport height (`viewportHeight`).
+  final double? verticalAutoScrollTopFactor;
+
+  /// Multiplier of the screen height for the lower auto-scroll boundary.
+  /// If `null`, a default value is used:
+  /// - for mobile devices in landscape orientation — `1.60`;
+  /// - for portrait orientation iOS — `0.96`;
+  /// - for portrait orientation Android — `1.01`.
+  /// The value is multiplied by the viewport height (`viewportHeight`) and
+  /// corrected for the bottom safe area (`bottomSafeArea`).
+  final double? verticalAutoScrollBottomFactor;
+
   final DragAndDropListsMananger? dragManager;
 
   DragAndDropLists({
@@ -431,6 +446,8 @@ class DragAndDropLists extends StatefulWidget {
     this.onMoveUpdate,
     this.verticalScrollController,
     this.cacheExtent,
+    this.verticalAutoScrollTopFactor,
+    this.verticalAutoScrollBottomFactor,
     this.dragManager,
     super.key,
   }) {

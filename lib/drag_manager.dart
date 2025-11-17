@@ -149,7 +149,8 @@ class DragAndDropListsMananger {
     // For portrait orientation: 10-15% of screen height
     // For landscape orientation: 15-25% of screen height (larger, as height is smaller)
     final isLandscape = viewportHeight < 600; // Approximate threshold for determining landscape orientation
-    final topPercentage = isLandscape ? 0.30 : 0.12; // 30% for landscape, 12% for portrait
+    final verticalAutoScrollTopFactor = activeInstance.widget.verticalAutoScrollTopFactor ??
+        (isLandscape ? 0.30 : 0.15); // 30% for landscape, 15% for portrait
 
     // Detect device type: tablet vs mobile based on screen diagonal
     final screenWidth = mediaQuery.size.width;
@@ -158,12 +159,13 @@ class DragAndDropListsMananger {
     final isTablet = diagonal > 1100; // Approximate threshold for tablet detection
 
     // Adjust bottom boundary to account for iOS safe area
-    final bottomPercentage = isLandscape && !isTablet
-      ? 1.60  // 160% for mobile in landscape
-      : (Platform.isIOS ? 0.96 : 1.01); // 96% for portrait iOS, 101% for portrait Android
+    final verticalAutoScrollBottomFactor = activeInstance.widget.verticalAutoScrollBottomFactor ??
+        (isLandscape && !isTablet
+            ? 1.60 // 160% for mobile in landscape
+            : (Platform.isIOS ? 0.96 : 1.01)); // 96% for portrait iOS, 101% for portrait Android
 
-    final top = viewportHeight * topPercentage;
-    final bottom = (viewportHeight * bottomPercentage) - bottomSafeArea;
+    final top = viewportHeight * verticalAutoScrollTopFactor;
+    final bottom = (viewportHeight * verticalAutoScrollBottomFactor) - bottomSafeArea;
 
     double? newOffset;
 
