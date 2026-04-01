@@ -1,7 +1,7 @@
 import 'package:drag_and_drop_lists/drag_and_drop_interface.dart';
 import 'package:flutter/widgets.dart';
 
-class DragAndDropItem implements DragAndDropInterface {
+class DragAndDropItem<T> implements DragAndDropInterface {
   /// The child widget of this item.
   final Widget child;
 

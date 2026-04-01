@@ -27,6 +27,7 @@ class DragAndDropBuilderParameters {
   final OnItemDropOnLastTarget? onItemDropOnLastTarget;
   final OnListReordered? onListReordered;
   final ListOnWillAccept? listOnWillAccept;
+  final ListOnAccept? listOnAccept;
   final ListTargetOnWillAccept? listTargetOnWillAccept;
   final OnListDraggingChanged? onListDraggingChanged;
   final ItemOnWillAccept? itemOnWillAccept;
@@ -50,12 +51,14 @@ class DragAndDropBuilderParameters {
   final Decoration? listDecorationWhileDragging;
   final Decoration? listInnerDecoration;
   final double listWidth;
+  final double? listHeight;
   final double lastItemTargetHeight;
   final bool addLastItemTargetHeightToTop;
   final DragHandle? listDragHandle;
   final DragHandle? itemDragHandle;
   final bool constrainDraggingAxis;
   final bool disableScrolling;
+  final bool enableAnyDragDirection;
 
   DragAndDropBuilderParameters({
     this.onPointerMove,
@@ -66,6 +69,7 @@ class DragAndDropBuilderParameters {
     this.onListReordered,
     this.listDraggingWidth,
     this.listOnWillAccept,
+    this.listOnAccept,
     this.listTargetOnWillAccept,
     this.onListDraggingChanged,
     this.itemOnWillAccept,
@@ -88,11 +92,13 @@ class DragAndDropBuilderParameters {
     this.listDecorationWhileDragging,
     this.listInnerDecoration,
     this.listWidth = double.infinity,
+    this.listHeight,
     this.lastItemTargetHeight = 20,
     this.addLastItemTargetHeightToTop = false,
     this.listDragHandle,
     this.itemDragHandle,
     this.constrainDraggingAxis = true,
     this.disableScrolling = false,
+    this.enableAnyDragDirection = false,
   });
 }

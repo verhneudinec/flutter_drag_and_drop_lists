@@ -3,8 +3,8 @@ import 'package:drag_and_drop_lists/drag_and_drop_item.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_item_target.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_item_wrapper.dart';
 import 'package:drag_and_drop_lists/drag_and_drop_list_interface.dart';
+import 'package:drag_and_drop_lists/measure_size.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
 
 class DragAndDropList implements DragAndDropListInterface {
   /// The widget that is displayed at the top of the list.
@@ -44,6 +44,12 @@ class DragAndDropList implements DragAndDropListInterface {
   @override
   final List<DragAndDropItem> children;
 
+  final void Function()? onTapCallback;
+
+  final void Function(double)? onListHeightChanged;
+
+  final Duration animationDuration;
+
   /// Whether or not this item can be dragged.
   /// Set to true if it can be reordered.
   /// Set to false if it must remain fixed.
@@ -64,6 +70,9 @@ class DragAndDropList implements DragAndDropListInterface {
     this.horizontalAlignment = MainAxisAlignment.start,
     this.verticalAlignment = CrossAxisAlignment.start,
     this.canDrag = true,
+    this.onTapCallback,
+    this.onListHeightChanged,
+    this.animationDuration = const Duration(milliseconds: 200),
   });
 
   @override
@@ -87,9 +96,11 @@ class DragAndDropList implements DragAndDropListInterface {
       );
     }
     if (params.listInnerDecoration != null) {
-      intrinsicHeight = Container(
-        decoration: params.listInnerDecoration,
-        child: intrinsicHeight,
+      intrinsicHeight = Flexible(
+        child: Container(
+          decoration: params.listInnerDecoration,
+          child: intrinsicHeight,
+        ),
       );
     }
     contents.add(intrinsicHeight);
@@ -98,18 +109,45 @@ class DragAndDropList implements DragAndDropListInterface {
       contents.add(Flexible(child: footer!));
     }
 
-    return Container(
+    final widget = SizedBox(
       key: key,
       width: params.axis == Axis.vertical
           ? double.infinity
           : params.listWidth - params.listPadding!.horizontal,
-      decoration: decoration ?? params.listDecoration,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.max,
         crossAxisAlignment: verticalAlignment,
         children: contents,
       ),
     );
+
+    final tapableWidget = InkWell(
+      onTap: onTapCallback,
+      child: DragTarget(
+        onWillAccept: (_) {
+          params.listOnWillAccept?.call(null, this);
+          return true;
+        },
+        onAccept: (_) {
+          params.listOnAccept?.call(this, this);
+        },
+        builder: (BuildContext context, List<Object?> candidateData, List<dynamic> rejectedData) {
+          return AnimatedContainer(
+            duration: animationDuration,
+            curve: Curves.easeIn,
+            decoration: decoration ?? params.listDecoration,
+            height: (params.listHeight != null && params.listPadding != null)
+                ? params.listHeight! - params.listPadding!.vertical
+                : null,
+            padding: params.listPadding,
+            child: widget,
+          );
+        }
+      ),
+    );
+
+
+    return tapableWidget;
   }
 
   List<Widget> _generateDragAndDropListInnerContents(
@@ -135,19 +173,18 @@ class DragAndDropList implements DragAndDropListInterface {
           allChildren.add(parameters.itemDivider!);
         }
       }
-      allChildren.add(DragAndDropItemTarget(
-        parent: this,
-        parameters: parameters,
-        onReorderOrAdd: parameters.onItemDropOnLastTarget!,
-        child: lastTarget ??
-            Container(
-              height: parameters.lastItemTargetHeight,
-            ),
+      allChildren.add(Expanded(
+        child: DragAndDropItemTarget(
+          parent: this,
+          parameters: parameters,
+          onReorderOrAdd: parameters.onItemDropOnLastTarget!,
+          child: lastTarget ?? Container(height: parameters.lastItemTargetHeight),
+        ),
       ));
       contents.add(
         Expanded(
-          child: SingleChildScrollView(
-            physics: const NeverScrollableScrollPhysics(),
+          child: MeasureSize(
+            onSizeChange: (size) => onListHeightChanged?.call(size!.height),
             child: Column(
               crossAxisAlignment: verticalAlignment,
               mainAxisSize: MainAxisSize.max,
@@ -161,26 +198,16 @@ class DragAndDropList implements DragAndDropListInterface {
         Expanded(
           child: SingleChildScrollView(
             physics: const NeverScrollableScrollPhysics(),
-            child: Column(
-              mainAxisSize: MainAxisSize.max,
-              children: <Widget>[
-                contentsWhenEmpty ??
-                    const Text(
-                      'Empty list',
-                      style: TextStyle(
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                DragAndDropItemTarget(
-                  parent: this,
-                  parameters: parameters,
-                  onReorderOrAdd: parameters.onItemDropOnLastTarget!,
-                  child: lastTarget ??
-                      Container(
-                        height: parameters.lastItemTargetHeight,
-                      ),
-                ),
-              ],
+            child: SizedBox(
+              height: parameters.listHeight != null && parameters.listPadding != null
+                  ? parameters.listHeight! - (parameters.listPadding!.vertical * 2)
+                  : null,
+              child: DragAndDropItemTarget(
+                parent: this,
+                parameters: parameters,
+                onReorderOrAdd: parameters.onItemDropOnLastTarget!,
+                child: lastTarget ?? const SizedBox()
+              ),
             ),
           ),
         ),
